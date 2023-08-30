@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mysql:
+    build:
+      context: .
+      dockerfile: docker/db/mysql/Dockerfile
+    restart: always
+    env_file:
+      - .env
+    ports:
+      # [수정]
+      - "13306:3306"
+    ## [수정] 자동생성되는 db이름을 명시 -> sqlalchemy의 데이터베이스명과 동일하게 수정
+    environment:
+      TZ: Asia/Seoul
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: notification_api
+      # travis CI는 test용db를 만들 때 유저명이 travis를 쓴다.
+      MYSQL_USER: travis
+      MYSQL_PASSWORD: travis
+    volumes:
+      # 1. my.cnf 설정파일 host(cnf파일 미리작성) -> docker (*.cnf파일을 읽게됨)
+      - ./docker/db/mysql/config:/etc/mysql/conf.d
+      # 2. host (자동실행될 스크립트들) -> docker
+      - ./docker/db/mysql/init:/docker-entrypoint-initdb.d
+      # 3. docker 생성 data들을 공유받게 됨  host <- docker (생성)
+      - ./docker/db/mysql/data:/var/lib/mysql
+      - ./docker/db/mysql/logs:/var/log/mysql
+#    command:
+#      >
+#      bash -c "chmod 755 /etc/mysql/conf.d/*.cnf && /entrypoint.sh mysqld"
+    entrypoint:
+      - docker-entrypoint.sh
+      - mysqld
+  api:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    restart: always
+    env_file:
+      - .env
+    #environment:
+    volumes:
+      - .:/app
+    command: [
+      "uvicorn",
+      "app.main:app",
+      "--host=0.0.0.0",
+      "--reload"
+    ]
+    ports:
+      - "8010:8000"
+    # mysql 서비스 도커를 이용하기 위함.
+    links:
+      - mysql
+    depends_on:
+      - mysql
