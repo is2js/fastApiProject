@@ -1,0 +1,3 @@
+# JWT
+JWT_SECRET = 'abcd1234!'
+JWT_ALGORITHM = 'HS256'

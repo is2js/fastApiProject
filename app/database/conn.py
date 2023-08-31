@@ -33,7 +33,7 @@ class SQLAlchemy:
         @app.on_event("startup")
         def start_up():
             self._engine.connect()
-            from .schema import Users
+            from .models import Users
             Base.metadata.create_all(bind=self._engine)
             logging.info("DB connected.")
 

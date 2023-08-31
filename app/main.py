@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.common.config import conf
 from app.database.conn import db
-from app.router import index
+from app.router import index, auth
 
 
 def create_app():
@@ -22,6 +22,7 @@ def create_app():
 
     # route 등록
     app.include_router(index.router)
+    app.include_router(auth.router)
 
     return app
 

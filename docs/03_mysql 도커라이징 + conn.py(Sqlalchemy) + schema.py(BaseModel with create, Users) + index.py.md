@@ -174,7 +174,7 @@ def create_app():
 ```
 
 3. app > database 폴더에 3개의 파일을 생성한다.
-    - conn.py crud.py schema.py
+    - conn.py crud.py models.py
 
 #### conn.py
 4. **conn.py 내부에는 `SQLAlchemy` 싱글톤 객체를 만들어 관리되게 하는데, db라는 객체를 선언해서 띄워놓고, 내부의 `init_app()`메서드에 app객체 및 설정 keyword인자를
@@ -300,7 +300,7 @@ db = SQLAlchemy()
 Base = declarative_base()
 ```
 
-#### schema.py - BaseModel, Users
+#### models.py - BaseModel, Users
 1. Base를 상속하는 `BaseModel`부터 생성한다.
     - 추상table으로서 abstract=True 옵션을 주고, @declarded_attr로서 tablename을 클래스의 소문자로 만든다.
     - **id, created_at, updated_at를 추가 고정필드로 생성하고, 자동으로 주어지는 id를 이용해 hash()로 hash를 만든다.**
@@ -349,7 +349,7 @@ class Users(BaseModel):
     # keys = relationship("ApiKeys", back_populates="users")
 ```
 
-3. **DB를 자동생성하기 위해, `db.init_app의 startup on_event`에서, schema.py의 Users를 import한뒤, Base.metadata.create_all()을 self._engine으로 해준다.**
+3. **DB를 자동생성하기 위해, `db.init_app의 startup on_event`에서, models.py의 Users를 import한뒤, Base.metadata.create_all()을 self._engine으로 해준다.**
 ```python
 class SQLAlchemy:
     
@@ -362,7 +362,7 @@ class SQLAlchemy:
         @app.on_event("startup")
         def start_up():
             self._engine.connect()
-            from .schema import Users
+            from .models import Users
             Base.metadata.create_all(bind=self._engine)
             logging.info("DB connected.")
 ```
@@ -413,7 +413,7 @@ from sqlalchemy.orm import Session
 from starlette.responses import Response
 
 from app.database.conn import db
-from app.database.schema import Users
+from app.database.models import Users
 
 router = APIRouter()
 

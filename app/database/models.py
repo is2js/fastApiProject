@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, DateTime, func, Enum, String, Boolean
 from sqlalchemy.orm import declared_attr, Session
 
-from app.database.conn import Base
+from app.database.conn import Base, db
 
 
 class BaseModel(Base):
@@ -27,9 +27,12 @@ class BaseModel(Base):
         return hash(self.id)
 
     # 기본 CRUD 메서드
-    # 1) create -> 새 session발급 없이, [인자] 외부주입 [공용 새 session]으로만 사용해서 그 속에 [객체추가]
+    # 1) create -> 새 session발급 없이, [인자] 외부주입 [router 공용 session]으로만 사용해서 그 속에 [객체추가]
     #   + all_columns 메서드 -> 자동으로 주어지는 id, created_at을, [생성시 제외하고 setattr 하기 위함.]
-    # 2) get -> 조회는 [공용session 주입 인자] + [내부 next()로 조회용 새session발급]-[조회route는 공용session 주입 없이] 간다?
+    #   - autocommit이 안들어가는 경우, 1session으로 여러가지 작업을 이어서 나가야하기 때문에 -> 받은 session으로만 사용
+    # 2) get -> 조회는 [router 공용 session 주입 인자] + [내부  next() session 새 발급] - route 공용세션 없는, 메서드 상황에서 단독조회까지 가능하게 한다
+    #   + if 내부 새발급session이라면, .close()로 조회만 하고 객체만 반환하여 닫는다.
+    #   - commit개념이 없고, 데이터 조회만 하는 경우 -> 내부 새 세션 / 작업이 이어지는 경우 -> 외부 세션
 
     def all_columns(self):
         return [c for c in self.__table__.columns if c.primary_key is False and c.name != "created_at"]
@@ -52,9 +55,31 @@ class BaseModel(Base):
 
         return obj
 
+    @classmethod
+    def get(cls, session: Session = None, **kwargs):
+        # 1) router 공용 session이 없다면, 새 session을 바급한다.
+        local_session = next(db.session()) if not session else session
+        # 2) session.query(cls)로 연쇄 query의 첫번째 요소로 만든다.
+        query = local_session.query(cls)
+        # 3) kwarg로 들어오는 검색요소key=value를 순회하면서,
+        #    getattr(cls, key)로 column을 꺼내고, filter()를 연쇄한다.
+        for key, value in kwargs.items():
+            column = getattr(cls, key)
+            query = query.filter(column == value)
+
+        # 4) query.count()를 쳐서 1개 이상이면, get에 안어울려 에러는 낸다.
+        if query.count() > 1:
+            raise Exception("Only one row is supposed to be returned, but got more than one. ")
+        result = query.first()
+
+        # 5) 외부주입 session이 아니라면, 조회후 새발급 session을 끊어버린다.
+        if not session:
+            local_session.close()
+
+        return result
+
 
 class Users(BaseModel):
-
     status = Column(Enum("active", "deleted", "blocked"), default="active")
     email = Column(String(length=255), nullable=True)
     pw = Column(String(length=2000), nullable=True)
