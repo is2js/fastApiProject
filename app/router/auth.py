@@ -11,8 +11,21 @@ from app.database.conn import db
 from app.database.models import Users
 from app.schema import SnsType, UserRegister, Token, UserToken
 
-router = APIRouter()
+"""
+400 Bad Request
+401 Unauthorized
+403 Forbidden
+404 Not Found
+405 Method not allowed
 
+500 Internal Error
+502 Bad Gateway
+504 Timeout
+
+200 OK
+201 Created
+"""
+router = APIRouter()
 
 async def exists_user_email(email: str):
     user = Users.get(email=email)
@@ -65,3 +78,37 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
         return new_token
 
     return JSONResponse(status_code=400, content=dict(message="NOT_SUPPORTED"))
+
+
+@router.post("/login/{sns_type}", status_code=200, response_model=Token)
+async def login(sns_type: SnsType, user_info: UserRegister):
+    """
+    `로그인 API`\n
+    :param sns_type:
+    :param user_info:
+    :return:
+    """
+    if sns_type == SnsType.email:
+        # 검증1) 모든 요소(email, pw)가 다들어와야한다.
+        if not user_info.email or not user_info.pw:
+            return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
+        # 검증2) email이 존재 해야만 한다.
+        exists_email = await exists_user_email(user_info.email)
+        if not exists_email:
+            return JSONResponse(status_code=400, content=dict(message="NO_MATCH_USER"))
+        # 검증3)  [입력된 pw] vs email로 등록된 DB저장 [해쉬 pw]  동일해야한다.
+        user = Users.get(email=user_info.email)
+        is_verified = bcrypt.checkpw(user_info.pw.encode('utf-8'), user.pw.encode('utf-8'))
+        if not is_verified:
+            return JSONResponse(status_code=400, content=dict(message="NO_MATCH_USER"))
+
+        # 비번인증된 user객체 -> UserToken(dict) -> create_access_token -> Token모델용 token dict return
+        token_data = UserToken.model_validate(user).model_dump(exclude={'pw', 'marketing_agree'})
+        token = dict(
+            Authorization=f"Bearer {create_access_token(data=token_data)}"
+        )
+        return token
+
+    return JSONResponse(status_code=400, content=dict(msg="NOT_SUPPORTED"))
+
+
