@@ -33,7 +33,8 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
 
 
 3. 일단 router객체를 create_app에 등록해준다.
-
+    - **이 때, `tags=["Authentication"]`, `prefix="/auth"`옵션을 추가해서 등록한다.**
+        - FastAPI에서 tags 매개변수는 API 문서화를 위해 사용되는 기능입니다. tags는 해당 라우터에 대한 태그를 지정하는 데 사용되며, API 문서화를 더 구조적으로 만들고 그룹화할 수 있도록 도와줍니다.
     ```python
     from app.router import index, auth
     
@@ -41,7 +42,9 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
     # ...
     def create_app():
         # ...
-        app.include_router(auth.router)
+        # route 등록
+        app.include_router(index.router)
+        app.include_router(auth.router, tags=["Authentication"], prefix="/auth")
     
         return app
     ```

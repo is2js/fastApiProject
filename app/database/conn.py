@@ -29,20 +29,11 @@ class SQLAlchemy:
 
         self._engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
         self._Session = sessionmaker(bind=self._engine, autocommit=False, autoflush=False, )
+        self.init_app_event(app)
 
-        @app.on_event("startup")
-        def start_up():
-            self._engine.connect()
-            from .models import Users
-            Base.metadata.create_all(bind=self._engine)
-            logging.info("DB connected.")
-
-        @app.on_event("shutdown")
-        def shut_down():
-            self._Session.close_all()
-            self._engine.dispose()
-            logging.info("DB disconnected.")
-
+        # table 자동 생성
+        from app.models import Users
+        Base.metadata.create_all(bind=self._engine)
 
     def get_db(self):
         """
@@ -71,9 +62,17 @@ class SQLAlchemy:
     def engine(self):
         return self._engine
 
+    def init_app_event(self, app):
+        @app.on_event("startup")
+        def start_up():
+            self._engine.connect()
+            logging.info("DB connected.")
 
-
-
+        @app.on_event("shutdown")
+        def shut_down():
+            self._Session.close_all()
+            self._engine.dispose()
+            logging.info("DB disconnected.")
 
 
 db = SQLAlchemy()

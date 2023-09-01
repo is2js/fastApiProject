@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from fastapi import APIRouter
+from starlette.requests import Request
 from starlette.responses import Response
 
-from app.database.models import Users
+# from app.models.auth import Users
+from app.models import Users
 
 router = APIRouter()
 
@@ -23,6 +25,15 @@ async def index():
 
     user = Users.get(name='조재성')
     print(user)
+
+    current_time = datetime.utcnow()
+    return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")
+
+
+@router.get("/test")
+async def test(request: Request):
+
+    print("request.state.user", request.state.user)
 
     current_time = datetime.utcnow()
     return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")

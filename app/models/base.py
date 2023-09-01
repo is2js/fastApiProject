@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, func, Enum, String, Boolean
+from sqlalchemy import Column, Integer, DateTime, func
 from sqlalchemy.orm import declared_attr, Session
 
 from app.database.conn import Base, db
@@ -79,13 +79,3 @@ class BaseModel(Base):
         return result
 
 
-class Users(BaseModel):
-    status = Column(Enum("active", "deleted", "blocked"), default="active")
-    email = Column(String(length=255), nullable=True)
-    pw = Column(String(length=2000), nullable=True)
-    name = Column(String(length=255), nullable=True)
-    phone_number = Column(String(length=20), nullable=True, unique=True)
-    profile_img = Column(String(length=1000), nullable=True)
-    sns_type = Column(Enum("FB", "G", "K"), nullable=True)
-    marketing_agree = Column(Boolean, nullable=True, default=True)
-    # keys = relationship("ApiKeys", back_populates="users")

@@ -44,10 +44,21 @@ class LocalConfig(Config):
     # - host에 연결시에는 localhost + 13306
     DB_URL: str = "mysql+pymysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
 
+    # CORS
+    ALLOW_SITE = ["*"]
+    # TRUSTED_HOST
+    TRUSTED_HOSTS = ["*"]
+
+
 
 @dataclass
 class ProdConfig(Config):
     PROJ_RELOAD: bool = False
+
+    # CORS
+    ALLOW_SITE = ["*"]
+    # TRUSTED_HOST
+    TRUSTED_HOSTS = ["*"]
 
 
 def conf():
