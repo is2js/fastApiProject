@@ -17,6 +17,7 @@
     - 코드 간결화(if user: return True + return False -> return True if user else False)
     - Pydantic v1 -> v2 (.from_orm().dict()) -> .model_validate().model_dump())
     - custom exceptions 세분화
+    - logger 설정 세분화(category별 logger객체 -> api용 async 메서드)
 ## 설치 
 
 ---

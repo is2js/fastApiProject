@@ -1,6 +1,7 @@
 from dataclasses import dataclass, asdict
 from os import path, environ
 
+# config.py의 위치에 따라 변동
 base_dir = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 
 
@@ -13,6 +14,7 @@ class Config:
     기본 Configuration
     """
     BASE_DIR = base_dir
+    LOG_DIR = path.join(BASE_DIR, 'logs')
 
     DB_POOL_RECYCLE: int = 900
     DB_ECHO: bool = True
@@ -44,11 +46,12 @@ class LocalConfig(Config):
     # - host에 연결시에는 localhost + 13306
     DB_URL: str = "mysql+pymysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
 
-    # CORS
+    # 미들웨어
     ALLOW_SITE = ["*"]
-    # TRUSTED_HOST
     TRUSTED_HOSTS = ["*"]
 
+    # log
+    LOG_BACKUP_COUNT = 1
 
 
 @dataclass
@@ -59,6 +62,9 @@ class ProdConfig(Config):
     ALLOW_SITE = ["*"]
     # TRUSTED_HOST
     TRUSTED_HOSTS = ["*"]
+
+    # log
+    LOG_BACKUP_COUNT = 10
 
 
 def conf():

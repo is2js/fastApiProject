@@ -10,6 +10,7 @@ from app.errors.exceptions import APIException, NotFoundUserException, NotAuthor
 from app.schema import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
+from app.utils.loggers import app_logger
 
 
 class AccessControl(BaseHTTPMiddleware):
@@ -36,6 +37,7 @@ class AccessControl(BaseHTTPMiddleware):
         # request.state.access_token = request.headers.get("Authorization")
         # print(request.state.access_token)
 
+        # 로드밸런서를 거칠 때만 "x-forwarded-for", local에서는  request.client.host에서 추출
         ip = headers["x-forwarded-for"] if "x-forwarded-for" in headers.keys() else request.client.host
         request.state.ip = ip.split(",")[0] if "," in ip else ip
         # print(request.state.ip)
@@ -44,16 +46,16 @@ class AccessControl(BaseHTTPMiddleware):
         # print(url)
 
         try:
-        # 통과(access) 검사 시작 ------------
+            # 통과(access) 검사 시작 ------------
             # (1) except_path url 검사 -> 해당시, token없이 접속가능(/docs, /api/auth ~ 등) -> token 검사 없이 바로 endpoint(await call_next(request)) 로
             if await url_pattern_check(url, EXCEPT_PATH_REGEX) or url in EXCEPT_PATH_LIST:
                 response = await call_next(request)
-                # logging
-                # if url != "/":
-                #     await api_logger(request=request, response=response)
+                # 응답 전 logging -> except_path 중에서는 index를 제외하고 찍기
+                if url != "/":
+                    await app_logger.log(request=request, response=response)
                 return response
 
-        # (2) 토큰 검사 -> if api(/api시작)는 headers / else 템플릿은 cookie에서 검사
+            # (2) 토큰 검사 -> if api(/api시작)는 headers / else 템플릿은 cookie에서 검사
             # [1] api 접속 -> headers에 token정보 -> decode 후 user정보를 states.user에 심기
             if url.startswith('/api'):
                 # api 검사1) api endpoint 접속은, 무조건 Authorization 키가 없으면 탈락
@@ -66,7 +68,7 @@ class AccessControl(BaseHTTPMiddleware):
                 # 템플릿 쿠키 검사1) 키가 없으면 탈락
 
                 # test ) 잘못된 토큰 박아서, decode_token 내부에러 확인하기
-                # cookies['Authorization'] = 'Bearer abc'
+                cookies['Authorization'] = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwibmFtZSI6bnVsbCwicGhvbmVfbnVtYmVyIjpudWxsLCJwcm9maWxlX2ltZyI6bnVsbCwic25zX3R5cGUiOm51bGx9.6cnlgT4xWyKh5JTXxhd2kN1hLT4fawhnyBsV3scvDzU'
 
                 request.state.access_token = cookies.get("Authorization")
                 if not request.state.access_token:
@@ -84,8 +86,8 @@ class AccessControl(BaseHTTPMiddleware):
             # {'id': 26, 'email': 'user123@example.com', 'name': None, 'phone_number': None, 'profile_img': None, 'sns_type': None}
             #  id=26 email='user123@example.com' name=None phone_number=None profile_img=None sns_type=None
             response = await call_next(request)
-            # 나중에 응답 전 log
-            return response
+            # 응답 전 logging
+            await app_logger.log(request, response=response)
 
         except Exception as e:
             # handler를 통해 정의하지 않은 e라면 -> 기본 500의 APIException으로 변환되게 된다.
@@ -101,5 +103,6 @@ class AccessControl(BaseHTTPMiddleware):
 
             response = JSONResponse(status_code=error.status_code, content=error_dict)
             # logging
+            await app_logger.log(request, error=error)
 
-            return response
+        return response

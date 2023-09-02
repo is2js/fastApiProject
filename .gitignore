@@ -2,3 +2,4 @@
 /venv/
 /docker/db/mysql/data/
 /docker/db/mysql/logs/
+/logs/
