@@ -4,6 +4,7 @@ import re
 import jwt
 
 from app.common.consts import JWT_SECRET, JWT_ALGORITHM
+from app.errors.exceptions import TokenDecodeException, TokenExpiredException
 
 
 async def url_pattern_check(path, pattern):
@@ -20,9 +21,11 @@ async def decode_token(token: str):
         payload = jwt.decode(token, key=JWT_SECRET, algorithms=JWT_ALGORITHM)
         return payload
     except jwt.ExpiredSignatureError:
-        raise Exception("ExpiredSignature Error")
+        # raise Exception("ExpiredSignature Error")
+        raise TokenExpiredException()
     except jwt.InvalidTokenError:
-        raise Exception("InvalidToken Error")
+        # raise Exception("InvalidToken Error")
+        raise TokenDecodeException()
 
 
 async def create_access_token(*, data: dict = None, expires_delta: int = None):

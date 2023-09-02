@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic.networks import EmailStr
 
 
@@ -19,6 +19,11 @@ class UserRegister(BaseModel):
     email: EmailStr = None
     pw: str = None
 
+    @field_validator("email", "pw")
+    def check_required_fields(cls, value):
+        if value is None:
+            raise ValueError("필수 필드입니다.")
+        return value
 
 # resopnse model
 class Token(BaseModel):

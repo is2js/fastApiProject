@@ -5,6 +5,8 @@ from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST
+from app.errors.exception_handler import exception_handler
+from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized
 from app.schema import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
@@ -41,32 +43,35 @@ class AccessControl(BaseHTTPMiddleware):
         url = request.url.path
         # print(url)
 
+        try:
         # 통과(access) 검사 시작 ------------
-        # (1) except_path url 검사 -> 해당시, token없이 접속가능(/docs, /api/auth ~ 등) -> token 검사 없이 바로 endpoint(await call_next(request)) 로
-        if await url_pattern_check(url, EXCEPT_PATH_REGEX) or url in EXCEPT_PATH_LIST:
-            response = await call_next(request)
-            # print('except path - no url check')
-            # if url != "/":
-            #     await api_logger(request=request, response=response)
-            return response
+            # (1) except_path url 검사 -> 해당시, token없이 접속가능(/docs, /api/auth ~ 등) -> token 검사 없이 바로 endpoint(await call_next(request)) 로
+            if await url_pattern_check(url, EXCEPT_PATH_REGEX) or url in EXCEPT_PATH_LIST:
+                response = await call_next(request)
+                # logging
+                # if url != "/":
+                #     await api_logger(request=request, response=response)
+                return response
 
         # (2) 토큰 검사 -> if api(/api시작)는 headers / else 템플릿은 cookie에서 검사
-        try:
             # [1] api 접속 -> headers에 token정보 -> decode 후 user정보를 states.user에 심기
             if url.startswith('/api'):
-                # print('api request')
                 # api 검사1) api endpoint 접속은, 무조건 Authorization 키가 없으면 탈락
                 request.state.access_token = headers.get("Authorization")
                 if not request.state.access_token:
-                    # raise
-                    return JSONResponse(status_code=401, content=dict(message="AUTHORIZATION_REQUIRED"))
+                    # return JSONResponse(status_code=401, content=dict(message="AUTHORIZATION_REQUIRED"))
+                    raise NotAuthorized()
             # [2] 템플릿 레더링 -> cookies에서 token정보 -> decode 후 user정보를 states.user에 심기
             else:
                 # 템플릿 쿠키 검사1) 키가 없으면 탈락
+
+                # test ) 잘못된 토큰 박아서, decode_token 내부에러 확인하기
+                # cookies['Authorization'] = 'Bearer abc'
+
                 request.state.access_token = cookies.get("Authorization")
                 if not request.state.access_token:
-                    # raise
-                    return JSONResponse(status_code=401, content=dict(message="AUTHORIZATION_REQUIRED"))
+                    # return JSONResponse(status_code=401, content=dict(message="AUTHORIZATION_REQUIRED"))
+                    raise NotAuthorized()
 
             # toekn -> request.state.access_token 저장 후 -> token decode -> user정보 추출 -> state.user 저장
             # - Authorization 키가 있을 때, Bearer를 떼어낸 순수 jwt token를 decode 했을 때의 user정보를 state.user에 담아준다.
@@ -83,5 +88,18 @@ class AccessControl(BaseHTTPMiddleware):
             return response
 
         except Exception as e:
+            # handler를 통해 정의하지 않은 e라면 -> 기본 500의 APIException으로 변환되게 된다.
+            error: APIException = await exception_handler(e)
 
-            return JSONResponse(status_code=401, content=dict(message=f"{str(e)}"))
+            # JSONResponse의 content=로 넣을 error 객체를 dict로 변환한다.
+            error_dict = dict(
+                status=error.status_code,
+                code=error.code,
+                message=error.message,
+                detail=error.detail,
+            )
+
+            response = JSONResponse(status_code=error.status_code, content=error_dict)
+            # logging
+
+            return response
