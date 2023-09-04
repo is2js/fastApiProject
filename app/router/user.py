@@ -3,7 +3,7 @@ from starlette.requests import Request
 
 from app.errors.exceptions import NotFoundUserException, NotAuthorized, TokenExpiredException, NotFoundEmail
 from app.models import Users
-from app.schema import UserMe
+from app.schemas import UserMe
 
 router = APIRouter(prefix='/user')
 

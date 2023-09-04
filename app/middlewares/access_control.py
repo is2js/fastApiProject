@@ -7,7 +7,7 @@ from starlette.responses import Response, JSONResponse
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST
 from app.errors.exception_handler import exception_handler
 from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized
-from app.schema import UserToken
+from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
 from app.utils.loggers import app_logger

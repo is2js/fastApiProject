@@ -8,16 +8,16 @@
     - Raw query대신 sqlalchemy 2.0의 mixin 등을 구현해서 활용한다.
 
 - [참고 프로젝트](https://github.com/riseryan89/notification-api)와 차이점
-    - 제작 과정 문서화
-    - 도커라이징(app, db 등) 
+    - 제작 과정 문서화 + 도커라이징(app, db 등) 
     - DB table 자동 생성 적용
-    - schema.py <-> models.py 구분
-    - Sqlalchemy BaseModel <-> Mixin 구분, Sqlalchemy Mixin 고도화(async 적용 등)
+    - schemas.py <-> models.py 구분
+    - Sqlalchemy BaseModel <-> Mixin 구분, Sqlalchemy Mixin 고도화(2.0 style + async 적용 등)
     - 명확한 변수화(is_exists -> exists_user, reg_info -> user_register_info 등)
     - 코드 간결화(if user: return True + return False -> return True if user else False)
-    - Pydantic v1 -> v2 (.from_orm().dict()) -> .model_validate().model_dump())
-    - custom exceptions 세분화
-    - logger 설정 세분화(category별 logger객체 -> api용 async 메서드)
+    - `Pydantic v1 -> v2` (.from_orm().dict()) -> .model_validate().model_dump())
+    - `Exceptions handling 세분화`
+    - `Logger 설정 세분화`(category별 logger객체 -> api용 async 메서드 + category별 폴더 나누어 관리)
+    - `Sqlalchemy 2.0 style + async 적용`한 wrapper 구현
 ## 설치 
 
 ---

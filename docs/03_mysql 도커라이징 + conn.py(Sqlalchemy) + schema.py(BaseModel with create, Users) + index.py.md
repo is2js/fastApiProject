@@ -340,7 +340,6 @@ Base = declarative_base()
 2. base.py에는 Base를 상속하는 `BaseModel`부터 생성한다.
     - 추상table으로서 abstract=True 옵션을 주고, @declarded_attr로서 tablename을 클래스의 소문자로 만든다.
     - **id, created_at, updated_at를 추가 고정필드로 생성하고, 자동으로 주어지는 id를 이용해 hash()로 hash를 만든다.**
-    - **`칼럼외 추가필드(_query, _session, served)`를 만들었으므로, 생성자를 재정의해주되 `args, kwargs`를 인자로 추가해 Base의 생성자도 같이 필수로 호출해줘야한다.**
     ```python
     class BaseModel(Base):
         __abstract__ = True  # Base상속이면서, tablename 자동화할려면 필수.
@@ -353,13 +352,7 @@ Base = declarative_base()
         created_at = Column(DateTime, nullable=False, default=func.utc_timestamp())
         updated_at = Column(DateTime, nullable=False, default=func.utc_timestamp(), onupdate=func.utc_timestamp())
     
-        # 새로운
-        def __init__(self, *args, **kwargs):
-            # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 args, kwargs로 커버 
-            super().__init__(*args, **kwargs)
-            self._query = None
-            self._session = None
-            self.served = None
+
     
         # id가 아닌 id의 해쉬값
         def __hash__(self):

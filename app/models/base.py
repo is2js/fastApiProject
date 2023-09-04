@@ -1,10 +1,14 @@
 from sqlalchemy import Column, Integer, DateTime, func
-from sqlalchemy.orm import declared_attr, Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import declared_attr, Session, RelationshipProperty
 
 from app.database.conn import Base, db
+from app.models.mixins.crud_mixin import CRUDMixin
+from app.models.utils import class_property
 
 
-class BaseModel(Base):
+class BaseModel(CRUDMixin):
     __abstract__ = True  # Base상속이면서, tablename 자동화할려면 필수.
 
     @declared_attr
@@ -15,12 +19,12 @@ class BaseModel(Base):
     created_at = Column(DateTime, nullable=False, default=func.utc_timestamp())
     updated_at = Column(DateTime, nullable=False, default=func.utc_timestamp(), onupdate=func.utc_timestamp())
 
-    def __init__(self, *args, **kwargs):
-        # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 args, kwargs로 커버
-        super().__init__(*args, **kwargs)
-        self._query = None
-        self._session = None
-        self.served = None
+    # def __init__(self, *args, **kwargs):
+    #     self._query = None
+    #     self._session = None
+    #     self._served = None # 공용 session 받은 여부
+    #     # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 args, kwargs로 커버
+    #     super().__init__(*args, **kwargs)
 
     # id가 아닌 id의 해쉬값
     def __hash__(self):
@@ -37,23 +41,36 @@ class BaseModel(Base):
     def all_columns(self):
         return [c for c in self.__table__.columns if c.primary_key is False and c.name != "created_at"]
 
+    # @classmethod
+    # async def create(cls, session: AsyncSession, auto_commit=False, **kwargs):
+    #     obj = cls()
+    #     # id, created_at 제외 칼럼들을 돌면서, kwargs로 들어온 것 중에 있는 칼럼명의 경우, setattr()
+    #     for col in obj.all_columns():
+    #         col_name = col.name
+    #         if col_name not in kwargs:
+    #             continue
+    #         setattr(obj, col_name, kwargs.get(col_name))
+    #
+    #     session.add(obj)
+    #     # 일단 flush해서 session을 유지하다가, auto_commit=True까지 들어오면, commit하면서 닫기
+    #     await session.flush()
+    #     if auto_commit:
+    #         await session.commit()
+    #         # await session.refresh(obj)
+    #
+    #     return obj
+
     @classmethod
-    def create(cls, session: Session, auto_commit=False, **kwargs):
-        obj = cls()
-        # id, created_at 제외 칼럼들을 돌면서, kwargs로 들어온 것 중에 있는 칼럼명의 경우, setattr()
-        for col in obj.all_columns():
-            col_name = col.name
-            if col_name not in kwargs:
-                continue
-            setattr(obj, col_name, kwargs.get(col_name))
+    async def create_test(cls, session: Session = None, auto_commit=False, **kwargs):
+        obj = await cls._create_obj(session=session)
+        # print(obj.__dict__)
+        # print(obj.session)  # property
+        # print(obj.query)
+        # print(obj.settable_attributes)  # ['status', 'email', 'pw', 'name', 'phone_number', 'profile_img', 'sns_type', 'marketing_agree', 'updated_at']
+        if kwargs:
+            obj.fill(**kwargs)
 
-        session.add(obj)
-        # 일단 flush해서 session을 유지하다가, auto_commit=True까지 들어오면, commit하면서 닫기
-        session.flush()
-        if auto_commit:
-            session.commit()
-
-        return obj
+        return await obj.save(auto_commit=auto_commit)
 
     @classmethod
     def get(cls, session: Session = None, **kwargs):
@@ -77,5 +94,3 @@ class BaseModel(Base):
             local_session.close()
 
         return result
-
-

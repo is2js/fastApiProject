@@ -1,20 +1,22 @@
 import bcrypt
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from starlette.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 from app.database.conn import db
 from app.errors.exceptions import NotFoundException, EmailAlreadyExistsException, NoSupportException, \
     NoUserMatchException
 # from app.models.auth import Users
 from app.models import Users
-from app.schema import SnsType, UserRegister, Token, UserToken
+from app.schemas import SnsType, UserRegister, Token, UserToken
 from app.utils.auth_utils import create_access_token
 
 router = APIRouter(prefix='/auth')
 
+
+# async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)
-async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
+async def register(sns_type: SnsType, user_register_info: UserRegister, session: AsyncSession = Depends(db.session)):
     """
     `회원가입 API`\n
     :param sns_type:
@@ -35,10 +37,12 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
 
         # 비밀번호 해쉬 -> 해쉬된 비밀번호 + email -> user 객체 생성
         hash_pw = bcrypt.hashpw(user_register_info.pw.encode('utf-8'), bcrypt.gensalt())
-        new_user = Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
-
+        # new_user = Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
+        new_user = await Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
+        print("new_user", new_user.id)
         # user객체 -> new_user_data (dict by pydantic) -> create_access_token -> Token Schema용 dict 반환
         new_user_data = UserToken.model_validate(new_user).model_dump(exclude={'pw', 'marketing_agree'})
+        # new_user_data = UserToken(new_user).model_dump(exclude={'pw', 'marketing_agree'})
 
         new_token = dict(
             Authorization=f"Bearer {await create_access_token(data=new_user_data)}"
@@ -50,7 +54,7 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
 
 
 @router.post("/login/{sns_type}", status_code=200, response_model=Token)
-async def login(sns_type: SnsType, user_info: UserRegister, session: Session = Depends(db.session)):
+async def login(sns_type: SnsType, user_info: UserRegister, session: AsyncSession = Depends(db.session)):
     """
     `로그인 API`\n
     :param sns_type:
@@ -83,4 +87,3 @@ async def login(sns_type: SnsType, user_info: UserRegister, session: Session = D
 
     # return JSONResponse(status_code=400, content=dict(msg="NOT_SUPPORTED"))
     raise NoSupportException()
-

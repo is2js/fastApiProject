@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.database.conn import db
 # from app.models.auth import Users
 from app.models import Users
 
@@ -29,15 +31,19 @@ async def index():
     current_time = datetime.utcnow()
     return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")
 
+
 from inspect import currentframe as frame
+
+
 @router.get("/test")
 async def test(request: Request):
-
-    # try:
-    #     a = 1/0
-    # except Exception as e:
-    #     request.state.inspect = frame()
-    #     raise e
+    try:
+        user = await Users.create(email="abc@gmail.com", name='조재경', auto_commit=True)
+        user.name = '2'
+        await user.save(auto_commit=True)
+    except Exception as e:
+        request.state.inspect = frame()
+        raise e
 
     current_time = datetime.utcnow()
     return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")

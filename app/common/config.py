@@ -44,7 +44,9 @@ class LocalConfig(Config):
 
     # 도커 서비스 mysql + 도커자체port 3306으로 접속
     # - host에 연결시에는 localhost + 13306
-    DB_URL: str = "mysql+pymysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
+    # DB_URL: str = "mysql+pymysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
+    # async 적용
+    DB_URL: str = "mysql+aiomysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
 
     # 미들웨어
     ALLOW_SITE = ["*"]

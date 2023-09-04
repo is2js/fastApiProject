@@ -25,6 +25,7 @@ class UserRegister(BaseModel):
             raise ValueError("필수 필드입니다.")
         return value
 
+
 # resopnse model
 class Token(BaseModel):
     Authorization: str = None
@@ -43,6 +44,7 @@ class UserToken(BaseModel):
     class Config:
         # orm_mode = True
         from_attributes = True
+        strict=False
 
 
 class UserMe(BaseModel):

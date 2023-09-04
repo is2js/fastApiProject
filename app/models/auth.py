@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Enum, String, Boolean, select
-from sqlalchemy.orm import Session
-
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.base import BaseModel
 
 
@@ -17,8 +16,21 @@ class Users(BaseModel):
     # keys = relationship("ApiKeys", back_populates="users")
 
     @classmethod
-    async def get_by_email(cls, session: Session, email: str):
-        return session.scalars(
-            select(cls)
-            .where(cls.email == email)
-        ).first()
+    # async def get_by_email(cls, session: Session, email: str):
+    async def get_by_email(cls, session: AsyncSession, email: str):
+        # result = session.scalars(
+        #     select(cls).where(cls.email == email)
+        # ).first()
+
+        # result = await session.execute(
+        #     select(cls).where(cls.email == email)
+        # )
+        # result.scalars().first()
+
+        result = await session.scalars(
+            select(cls).where(cls.email == email)
+        )
+        return result.first()
+
+# if __name__ == '__main__':
+#     print(Users.test())
