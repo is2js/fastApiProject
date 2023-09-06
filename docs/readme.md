@@ -1,6 +1,6 @@
 ## 프로젝트 소개
 
-- 비교적 최신 웹프레임워크인 fastAPI를 이용해서 `소셜로그인 + 알림 API` 어플리케이션을 구현합니다.
+- 비교적 최신 웹 프레임워크인 fastAPI를 이용해서 `소셜로그인 + 알림 API` 어플리케이션을 구현합니다.
 
 - 구현 목표
     - fastAPI, DB 등을 모두 Dockerizing 한다.
@@ -15,9 +15,11 @@
     - 명확한 변수화(is_exists -> exists_user, reg_info -> user_register_info 등)
     - 코드 간결화(if user: return True + return False -> return True if user else False)
     - `Pydantic v1 -> v2` (.from_orm().dict()) -> .model_validate().model_dump())
-    - `Exceptions handling 세분화`
+    - 미들웨어 `Exceptions handling 세분화`
     - `Logger 설정 세분화`(category별 logger객체 -> api용 async 메서드 + category별 폴더 나누어 관리)
-    - `Sqlalchemy 2.0 style + async 적용`한 wrapper 구현
+    - `Sqlalchemy 2.0 style + async`를 적용한 wrapper 구현
+
+
 ## 설치 
 
 ---

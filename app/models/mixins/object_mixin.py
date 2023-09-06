@@ -1,4 +1,4 @@
-from sqlalchemy import select, text, Table, Subquery, Alias, and_, or_, func, exists
+from sqlalchemy import select, text, Table, Subquery, Alias, and_, or_, func, exists, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.collections import InstrumentedList
@@ -6,7 +6,7 @@ from sqlalchemy.sql import operators
 
 from app.database.conn import db
 from app.models.mixins.base_mixin import BaseMixin
-from app.models.mixins.consts import Clause, OPERATOR_SPLITTER, Logical
+from app.models.mixins.consts import Clause, OPERATOR_SPLITTER, Logical, ORDER_BY_DESC_PREFIX
 from app.models.mixins.maps import operator_map
 from app.models.utils import class_property
 
@@ -32,6 +32,7 @@ class ObjectMixin(BaseMixin):
             # session = next(db.session())
             # 비동기 AsyncSession는 yield하더라도, # 'async_generator' object is not an iterator 에러가 뜬다.
             # => 제네레이터가 아니라 비동기 제네레이터로서, wait + 제네레이터.__anext__()를 호출한다.
+            # session = await db.session().__anext__()
             session = await db.session().__anext__()
 
             self._session, self._served = session, False
@@ -68,6 +69,7 @@ class ObjectMixin(BaseMixin):
     def set_query(self, **clause_map):
         """
         obj.set_query(where=dict(id=77))
+        obj.set_query(order_by="-id")
         """
         # keyword로 입력되는 cluase_map의 key검사 -> Clause 안에 있어야한다.
         # -> create_obj시  clause_map이 없을 수도 있으니, 있을때만 검증하게 한다
@@ -80,12 +82,53 @@ class ObjectMixin(BaseMixin):
             self._query = select(self.__class__)
 
         # clause의 종류에 따라 각각 체이닝
-        for clause_, attr_name_and_value_map in clause_map.items():
+        for clause_, value_ in clause_map.items():
             clause_lower = clause_.lower()
 
             if clause_lower == Clause.WHERE:
-                self.chain_where_query(attr_name_and_value_map)
+                # where value = dict( id=1 )
+                self.chain_where_query(value_)
                 continue
+
+            elif clause_lower == Clause.ORDER_BY:
+                # order_by value = str tuple ("id") or ("-id") or ("-id, email")
+                self.chain_order_by_query(value_)
+                continue
+
+    def chain_order_by_query(self, args: tuple):
+        # column_exprs = self.create_order_by_exprs(args)
+        column_exprs_generator = self.create_order_by_exprs(args)
+
+        # .order_by(*column_exprs)
+        self.query = (
+            self.query
+            .order_by(*column_exprs_generator)
+        )
+
+    def create_order_by_exprs(self, args: tuple):
+        """
+        order_by('id') -> args:  ('id',)
+        order_by('id', '-id') -> args: ('id', '-id')
+        """
+        if not isinstance(args, (list, tuple, set)):
+            args = tuple(args)
+
+        # order_by_exprs = []
+
+        for attr_name_ in args:
+            order_by_prefix = ""
+            if ORDER_BY_DESC_PREFIX in attr_name_:
+                order_by_prefix = ORDER_BY_DESC_PREFIX
+                attr_name_ = attr_name_.lstrip(ORDER_BY_DESC_PREFIX)
+
+            order_func = desc if order_by_prefix else asc
+            column_expr = self.get_column(self.__class__, attr_name_)
+            order_by_expr = order_func(column_expr)  # desc(Users.id)
+
+            # order_by_exprs.append(order_by_expr)
+            yield order_by_expr
+
+        # return order_by_exprs
 
     def chain_where_query(self, attr_name_and_value_map):
         condition_exprs_generator = self.create_condition_exprs_recursive(attr_name_and_value_map)
@@ -96,7 +139,8 @@ class ObjectMixin(BaseMixin):
         )
 
     # dict -> list(key+value통합) 메서드에, {재귀key: dict-value}를 추가함에 따라, 재귀메서드로 처리하기
-    def create_condition_exprs_recursive(self, attr_name_and_value_map):
+    # for where, having
+    def create_condition_exprs_recursive(self, attr_name_and_value_map: dict):
         # 1) 재귀key가 포함될지도 모르니 다시 순회한다
         for attr_name_, value_ in attr_name_and_value_map.items():
             #    1개의 통합expression로서 yield하여 -> 외부 비재귀 list의 요소가 1개씩 yield될 때, 같은 급으로 and_(), or_() 가 줄슨다.
@@ -119,7 +163,8 @@ class ObjectMixin(BaseMixin):
             yield from self.create_condition_exprs(no_recursive_map)
 
     # 재귀로 조건식들을 반환
-    def create_condition_exprs(self, attr_name_and_value_map):
+    # for where, having
+    def create_condition_exprs(self, attr_name_and_value_map: dict):
         condition_exprs = []
 
         for attr_name_, value_ in attr_name_and_value_map.items():
@@ -273,7 +318,7 @@ class ObjectMixin(BaseMixin):
         #   SELECT users.status, users.email, users.pw, users.name, users.phone_number, users.profile_img, users.sns_type, users.marketing_agree, users.id, users.created_at, users.updated_at
         #   FROM users
         #   WHERE users.id = %s
-        #) AS anon_1
+        # ) AS anon_1
         exists_stmt = exists(self._query) \
             .select()
 
@@ -329,4 +374,3 @@ class ObjectMixin(BaseMixin):
 
         await self.close()
         return _one_or_none
-

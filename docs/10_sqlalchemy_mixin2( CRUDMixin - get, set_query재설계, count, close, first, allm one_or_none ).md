@@ -644,7 +644,7 @@ def create_condition_exprs_recursive(self, attr_name_and_value_map):
     def set_query(self, **clause_map):
  for clause_, attr_name_and_value_map in clause_map.items():
             if clause_.lower() == Clause.WHERE:
-                # condition_exprs = self.create_condition_exprs_recursive(attr_name_and_value_map)
+                # condition_exprs = self.create_condition_exprs_recursive(args)
                 condition_exprs_generator = self.create_condition_exprs_recursive(attr_name_and_value_map)
 
                 # 체이닝

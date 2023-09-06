@@ -30,7 +30,11 @@ async def index():
     # print("77 78", await Users.get(77, 78))  # <app.models.auth.Users object at 0x7fa3696fd610>
     # # print("999999, 77", await Users.get(999999, 77)) # 유효하지 않은 id or 중복된 id가 포함되어 있습니다.
     # print("9999", await Users.get(999999))  # "'<class \\'app.models.auth.Users\\'> with id \"999999\" was not found'"
-    print("get keyword", await Users.get(id=77)) # keyword <app.models.auth.Users object at 0x7faed13e4190>
+    # print("get keyword", await Users.get(id=77)) # keyword <app.models.auth.Users object at 0x7faed13e4190>
+    # print("filter_by", await Users.filter_by(id=1).first())
+    # print("filter_by", await Users.filter_by(id=1).filter_by(id__ne=None).first())
+    print("order_by", await Users.order_by("id").first())
+    print("order_by", await Users.order_by("id", "-id").first())
 
 
     current_time = datetime.utcnow()

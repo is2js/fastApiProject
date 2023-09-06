@@ -3,6 +3,7 @@ from enum import Enum
 from app.models.utils import class_property
 
 OPERATOR_SPLITTER = '__'
+ORDER_BY_DESC_PREFIX = '-'
 
 
 class BaseStrEnum(str, Enum):
