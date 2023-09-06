@@ -39,7 +39,6 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
         hash_pw = bcrypt.hashpw(user_register_info.pw.encode('utf-8'), bcrypt.gensalt())
         # new_user = Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
         new_user = await Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
-        print("new_user", new_user.id)
         # user객체 -> new_user_data (dict by pydantic) -> create_access_token -> Token Schema용 dict 반환
         new_user_data = UserToken.model_validate(new_user).model_dump(exclude={'pw', 'marketing_agree'})
         # new_user_data = UserToken(new_user).model_dump(exclude={'pw', 'marketing_agree'})

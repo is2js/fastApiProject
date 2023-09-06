@@ -25,14 +25,16 @@ async def index():
 
     # Users.create(session, auto_commit=True, name='조재성')
 
-    user = Users.get(name='조재성')
-    print(user)
+    # print("3", await Users.get(3)) # 3 None
+    # print("77", await Users.get(77))  # <app.models.auth.Users object at 0x7fa3696fd610>
+    # print("77 78", await Users.get(77, 78))  # <app.models.auth.Users object at 0x7fa3696fd610>
+    # # print("999999, 77", await Users.get(999999, 77)) # 유효하지 않은 id or 중복된 id가 포함되어 있습니다.
+    # print("9999", await Users.get(999999))  # "'<class \\'app.models.auth.Users\\'> with id \"999999\" was not found'"
+    print("get keyword", await Users.get(id=77)) # keyword <app.models.auth.Users object at 0x7faed13e4190>
+
 
     current_time = datetime.utcnow()
     return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")
-
-
-from inspect import currentframe as frame
 
 
 @router.get("/test")
@@ -42,6 +44,8 @@ async def test(request: Request):
         user.name = '2'
         await user.save(auto_commit=True)
     except Exception as e:
+        from inspect import currentframe as frame
+
         request.state.inspect = frame()
         raise e
 

@@ -51,7 +51,7 @@ class class_property(object):
 class ObjectMixin:
 
     def __init__(self, *args, **kwargs):
-        # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 args, kwargs로 커버
+        # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 ids_, kwargs로 커버
         super().__init__(*args, **kwargs)
         self._query = None
         self._session = None
@@ -69,7 +69,7 @@ class ObjectMixin:
        ```python
            @classmethod
            async def create_test(cls, session: Session = None, auto_commit=False, **kwargs):
-               obj = cls._create_obj(session=session)
+               obj = cls.create_obj(session=session)
        ```
   
 3. 위와 같이 만드려면, **`Mixin class에서, @classmethod`로 정의해야, baseModel 등에서 `cls.메서드()`가 호출 된다.**
@@ -225,16 +225,17 @@ class BaseModel(Base, ObjectMixin):
 
 ```
 - test하면 아래와 같이 출력된다.
+
 ```python
 @classmethod
 async def create_test(cls, session: Session = None, auto_commit=False, **kwargs):
-    obj = cls._create_obj(session=session)
+    obj = cls.create_obj(session=session)
     print(obj.__dict__)
     # print(obj.session)  # property
     # print(obj.query)
-    print(obj.settable_attributes) 
+    print(obj.settable_attributes)
     # ['status', 'email', 'pw', 'name', 'phone_number', 'profile_img', 'sns_type', 'marketing_agree', 'updated_at']
-    
+
     return
 ```
 #### Base를 상속한 것만 취급할 수 있으므로 Mixin에서 못씀 -> BaseMixin(Base)를 생성하고, BaseModel이 상속하도록 변경 -> ObjectMixin(BaseMixin)으로 사용
@@ -315,7 +316,7 @@ class BaseModel(ObjectMixin):
     ```python
     @classmethod
     async def create_test(cls, session: Session = None, auto_commit=False, **kwargs):
-        obj = cls._create_obj(session=session)
+        obj = cls.create_obj(session=session)
         if kwargs:
             obj.fill(**kwargs)
     
@@ -329,7 +330,7 @@ class BaseModel(ObjectMixin):
 ```python
 results = await db.execute(select(User)) users = results.scalars().all() 
 # 더 보기 좋게 만드는 대신 이 작업을 수행할 수도 있습니다. 
-users = await db.scalars(select(User)) 사용자 = users.all()
+users = await db.scalars(select(User))  users = users.all()
 ```
 - 참고 gist: https://gist.github.com/dunossauro/075cf06bc9dc7e16ddfa8717d6ee9c41
 
@@ -528,11 +529,12 @@ async def get_db(self):
     - **id가 이미 부여된 객체 -> `타 세션` 조회 or `sessoin끊어진 객체` -> `add/flush` 대신 `merge`를 해주고, id가 없는 쌩 객체면, `add/flush` 해주되**
     - commit한다면, **커밋 직후, db변화상황 받는 refrsh( 객체 ) 이후 반환**하도록 작성한다.
     - `DB로 보내는 메서드들(add제외 모두)`은 모두 `await`로 호출한다.
+    - **`commit`으로 close되면, `self._session/self._served를 초기화 `해준다.**
 
 ```python
 class ObjectMixin(BaseMixin):
-    __abstract__ = True 
-    
+    __abstract__ = True
+
     async def save(self, auto_commit=False):
         """
         obj.fill() -> obj.save() or user.fill() -> user.save()
@@ -548,8 +550,10 @@ class ObjectMixin(BaseMixin):
 
         if auto_commit:
             await self.session.commit()
-            await self.session.refresh(self) 
-            
+            await self.session.refresh(self)
+            self._session = None
+            self._served = False
+
         return self
 ```
 

@@ -19,12 +19,12 @@ class BaseModel(CRUDMixin):
     created_at = Column(DateTime, nullable=False, default=func.utc_timestamp())
     updated_at = Column(DateTime, nullable=False, default=func.utc_timestamp(), onupdate=func.utc_timestamp())
 
-    # def __init__(self, *args, **kwargs):
+    # def __init__(self, *ids_, **kwargs):
     #     self._query = None
     #     self._session = None
     #     self._served = None # 공용 session 받은 여부
-    #     # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 args, kwargs로 커버
-    #     super().__init__(*args, **kwargs)
+    #     # 필드 추가를 위해, 생성자 재정의 했으면, 기존 부모의 생성자를 ids_, kwargs로 커버
+    #     super().__init__(*ids_, **kwargs)
 
     # id가 아닌 id의 해쉬값
     def __hash__(self):
@@ -38,8 +38,8 @@ class BaseModel(CRUDMixin):
     #   + if 내부 새발급session이라면, .close()로 조회만 하고 객체만 반환하여 닫는다.
     #   - commit개념이 없고, 데이터 조회만 하는 경우 -> 내부 새 세션 / 작업이 이어지는 경우 -> 외부 세션
 
-    def all_columns(self):
-        return [c for c in self.__table__.columns if c.primary_key is False and c.name != "created_at"]
+    # def all_columns(self):
+    #     return [c for c in self.__table__.columns if c.primary_key is False and c.name != "created_at"]
 
     # @classmethod
     # async def create(cls, session: AsyncSession, auto_commit=False, **kwargs):
@@ -62,7 +62,7 @@ class BaseModel(CRUDMixin):
 
     @classmethod
     async def create_test(cls, session: Session = None, auto_commit=False, **kwargs):
-        obj = await cls._create_obj(session=session)
+        obj = await cls.create_obj(session=session)
         # print(obj.__dict__)
         # print(obj.session)  # property
         # print(obj.query)
@@ -72,25 +72,4 @@ class BaseModel(CRUDMixin):
 
         return await obj.save(auto_commit=auto_commit)
 
-    @classmethod
-    def get(cls, session: Session = None, **kwargs):
-        # 1) router 공용 session이 없다면, 새 session을 바급한다.
-        local_session = next(db.session()) if not session else session
-        # 2) session.query(cls)로 연쇄 query의 첫번째 요소로 만든다.
-        query = local_session.query(cls)
-        # 3) kwarg로 들어오는 검색요소key=value를 순회하면서,
-        #    getattr(cls, key)로 column을 꺼내고, filter()를 연쇄한다.
-        for key, value in kwargs.items():
-            column = getattr(cls, key)
-            query = query.filter(column == value)
 
-        # 4) query.count()를 쳐서 1개 이상이면, get에 안어울려 에러는 낸다.
-        if query.count() > 1:
-            raise Exception("Only one row is supposed to be returned, but got more than one. ")
-        result = query.first()
-
-        # 5) 외부주입 session이 아니라면, 조회후 새발급 session을 끊어버린다.
-        if not session:
-            local_session.close()
-
-        return result

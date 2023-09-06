@@ -47,10 +47,6 @@ class SQLAlchemy:
     # def get_db(self):
     async def get_db(self):
 
-        # 테이블 생성 추가
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
         # 초기화 X -> Session cls없을 땐 에러
         if self._Session is None:
             raise Exception("must be called 'init_app'")
@@ -85,9 +81,14 @@ class SQLAlchemy:
 
     def init_app_event(self, app):
         @app.on_event("startup")
-        def start_up():
+        async def start_up():
             self._engine.connect()
             logging.info("DB connected.")
+
+            # 테이블 생성 추가
+            async with self.engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+                logging.info("DB create_all.")
 
         @app.on_event("shutdown")
         async def shut_down():

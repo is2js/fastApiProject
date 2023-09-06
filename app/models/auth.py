@@ -5,7 +5,7 @@ from app.models.base import BaseModel
 
 class Users(BaseModel):
     status = Column(Enum("active", "deleted", "blocked"), default="active")
-    email = Column(String(length=255), nullable=True)
+    email = Column(String(length=255), nullable=True, unique=True)
     pw = Column(String(length=2000), nullable=True)
     name = Column(String(length=255), nullable=True)
     phone_number = Column(String(length=20), nullable=True, unique=True)

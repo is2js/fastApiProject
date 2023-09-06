@@ -1,3 +1,4 @@
+from sqlalchemy import PrimaryKeyConstraint, ForeignKeyConstraint, UniqueConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import RelationshipProperty
 
@@ -7,6 +8,12 @@ from app.models.utils import class_property
 
 class BaseMixin(Base):
     __abstract__ = True  # Base상속이면서, tablename 자동화할려면 필수.
+
+    constraint_map = {
+        'primary_key': PrimaryKeyConstraint,
+        'foreign_key': ForeignKeyConstraint,
+        'unique': UniqueConstraint,
+    }
 
     @class_property
     def column_names(cls):
@@ -57,3 +64,36 @@ class BaseMixin(Base):
     def is_setter_or_expression(self, column_name):
         return hasattr(getattr(self.__class__, column_name), 'setter') or \
             hasattr(getattr(self.__class__, column_name), 'expression')
+
+    @class_property
+    def constraint_class_list(cls):
+        return cls.__table__.constraints
+
+    @classmethod
+    def get_constraint_column_names(cls, target):
+        """
+        :param target: primary_key | foreign_key | unique
+        :return: []
+        """
+        target_constraint_class = cls.constraint_map.get(target)
+        target_constraint_class = next(
+            (c for c in cls.constraint_class_list if isinstance(c, target_constraint_class)),
+            None
+        )
+
+        if not target_constraint_class:
+            return []
+
+        return target_constraint_class.columns.keys()
+
+    @class_property
+    def primary_key_names(cls):
+        return cls.get_constraint_column_names('primary_key')
+
+    @class_property
+    def foreign_key_names(cls):
+        return cls.get_constraint_column_names('foreign_key')
+
+    @class_property
+    def unique_names(cls):
+        return cls.get_constraint_column_names('unique')
