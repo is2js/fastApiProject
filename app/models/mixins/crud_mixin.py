@@ -30,9 +30,7 @@ class CRUDMixin(ObjectMixin):
             User.get(1) => <User> or None
         2. id(pk)   2개로 검색하는 경우 => where(id칼럼.in_() ) + .all()
             User.get(1, 2) => [<User>, <.User object at 0x000002BE16C02FD0>]
-        3. kwargs(unique key or pk) key1개, values list 가능 우 -> filter_by(where)로 1개 .first() / 여러개 .all()
-            User.get(username='admin')
-            Category.get(name=['123', '12345'])
+        3. kwargs의 경우, pk or unqiue 로 검색 => where(email=, id=)
         """
         # 인자 검증1) ids_ or kwargs가 들어와야함. &  둘다 들어오면 안됨.
         if not (ids_ or kwargs) or (ids_ and kwargs):
@@ -136,3 +134,33 @@ class CRUDMixin(ObjectMixin):
     def check_order_by_args(self, args):
         if not all(isinstance(column_name, str) for column_name in args):
             raise KeyError(f'column명을 string으로 입력해주세요 ex> order_by("id", "-id") ')
+
+    ###################
+    # Update -        # -> only self method => create_obj없이 model_obj에서 [최초호출].init_obj()로 초기화
+    ###################
+    @class_or_instance_method
+    async def update(self, session: AsyncSession = None, auto_commit: bool = False, **kwargs):
+        raise NotImplementedError(f'update 메서드는 객체상태에서만 호출 할 수 있습니다.')
+
+    @update.instancemethod
+    async def update(self, session: AsyncSession = None, auto_commit: bool = False, **kwargs):
+        """
+        c = Category.get(1) # c.name '카테고리1'
+        c.update(name='카테고리1, auto_commit=True) # False ->  '값의 변화가 없어서 업데이트 실패'
+
+        - 만약, fill시 데이터가 변하지 않으면 -> None이 반환되고
+        - is_filled True -> save 까지 성공 -> 업데이트된 객체가 반환된다.
+
+        """
+        # 자체 create이후 & no commit은 session을 넣을 필요가 없다.
+        # -> 외부session or 이미 자체sess발급된 객체가 + 이전에 auto_commit되어 session이 None일 때만, session을 넣는다.
+        # if not(not session and getattr(self, '_session')):
+        # if session or not getattr(self, '_session'):
+        await self.set_session(session=session)
+
+        is_filled = self.fill(**kwargs)
+
+        if not is_filled:
+            return None
+
+        return await self.save(auto_commit=auto_commit)

@@ -14,7 +14,7 @@ router = APIRouter()
 
 # create가 포함된 route는 공용세션을 반드시 주입한다.
 @router.get("/")
-async def index():
+async def index(session: AsyncSession = Depends(db.session)):
     """
     `ELB 상태 체크용 API` \n
     서버의 시각을 알려줍니다.
@@ -33,9 +33,23 @@ async def index():
     # print("get keyword", await Users.get(id=77)) # keyword <app.models.auth.Users object at 0x7faed13e4190>
     # print("filter_by", await Users.filter_by(id=1).first())
     # print("filter_by", await Users.filter_by(id=1).filter_by(id__ne=None).first())
-    print("order_by", await Users.order_by("id").first())
-    print("order_by", await Users.order_by("id", "-id").first())
+    # print("order_by", await Users.order_by("id").first())
+    # print("order_by", await Users.order_by("id", "-id").first())
+    # create시 외부공용sess없는 상태에서, auto_commit해주지 않으면, 해당객체가 session을 계속 물고 있게 된다.
+    # -> user.update()시에는
+    user = await Users.create(email='abc@gmail.com')
+    # user = await Users.create(email='abc@gmail.com', auto_commit=True)
+    print("user", user)
+    print(await user.update(email='new_1_' + user.email))
+    # print(await user.update(email='new_1_' + user.email))
+    # is_filled False -> None
+    # print(await user.update(email='new_2_' + user.email, auto_commit=True))
+    print(await user.update(email='new_2_' + user.email, auto_commit=True))
+    # is_fillled True -> Users객체
 
+    user = await Users.get(id=user.id)
+    print(await user.update(email='get_1_' + user.email))
+    print(await user.update(email='get_2_' + user.email, auto_commit=True))
 
     current_time = datetime.utcnow()
     return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")

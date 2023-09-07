@@ -16,7 +16,7 @@
     - 코드 간결화(if user: return True + return False -> return True if user else False)
     - `Pydantic v1 -> v2` (.from_orm().dict()) -> .model_validate().model_dump())
     - 미들웨어 `Exceptions handling 세분화`
-    - `Logger 설정 세분화`(category별 logger객체 -> api용 async 메서드 + category별 폴더 나누어 관리)
+    - `Logger 설정 세분화`(api log <-> db log 구분하여 미들웨어에서 logging)
     - `Sqlalchemy 2.0 style + async`를 적용한 wrapper 구현
 
 

@@ -2,13 +2,12 @@ from sqlalchemy import select, text, Table, Subquery, Alias, and_, or_, func, ex
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.collections import InstrumentedList
-from sqlalchemy.sql import operators
 
 from app.database.conn import db
+from app.errors.exceptions import SaveFailException
 from app.models.mixins.base_mixin import BaseMixin
 from app.models.mixins.consts import Clause, OPERATOR_SPLITTER, Logical, ORDER_BY_DESC_PREFIX
 from app.models.mixins.maps import operator_map
-from app.models.utils import class_property
 
 
 class ObjectMixin(BaseMixin):
@@ -22,20 +21,27 @@ class ObjectMixin(BaseMixin):
         self._served = None  # 공용 session 받은 여부
 
     # def _set_session(self, session: Session = None):
-    async def _set_session(self, session: Session = None):
+    async def set_session(self, session: Session = None):
         """
-        공용 session이 따로 안들어오면, 단순조회용으로 db에서 새발급
+        외부 공용 session -> 덮어쓰기 + served
+        외부 공용 session X ->  
+            1) 필드x or session None -> 새발급
+            2) 필드o and session값도 not None(no close, no commit) -> 기존 session 이용
+            
+        따로 안들어오면, 단순조회용으로 db에서 새발급
         """
+        # 외부 X and 자신O(필드 + session) -> 아예 실행도 X
+        if not session and getattr(self, '_session', None):
+            return
+       
+        # 외부 O or 자신X
         if session:
+            # (외부 O) & (자신O or 자신X 노상관) -> 무조건 덮어쓰기
             self._session, self._served = session, True
         else:
-            # session = next(db.session())
-            # 비동기 AsyncSession는 yield하더라도, # 'async_generator' object is not an iterator 에러가 뜬다.
-            # => 제네레이터가 아니라 비동기 제네레이터로서, wait + 제네레이터.__anext__()를 호출한다.
-            # session = await db.session().__anext__()
-            session = await db.session().__anext__()
-
-            self._session, self._served = session, False
+            # (외부 X) and 자신X -> 새 발급
+            self._session = await db.session().__anext__()
+            self._served = False
 
     @property
     def session(self):
@@ -83,14 +89,12 @@ class ObjectMixin(BaseMixin):
 
         # clause의 종류에 따라 각각 체이닝
         for clause_, value_ in clause_map.items():
-            clause_lower = clause_.lower()
-
-            if clause_lower == Clause.WHERE:
+            if clause_ == Clause.WHERE:
                 # where value = dict( id=1 )
                 self.chain_where_query(value_)
                 continue
 
-            elif clause_lower == Clause.ORDER_BY:
+            elif clause_ == Clause.ORDER_BY:
                 # order_by value = str tuple ("id") or ("-id") or ("-id, email")
                 self.chain_order_by_query(value_)
                 continue
@@ -200,7 +204,7 @@ class ObjectMixin(BaseMixin):
     # async def _create_obj(cls, session: Session = None, query=None):
     async def create_obj(cls, session: Session = None, **kwargs):
         obj = cls()
-        await obj._set_session(session=session)  # 비동기 session을 받아오는 비동기 호출 메서드로 변경
+        await obj.set_session(session=session)  # 비동기 session을 받아오는 비동기 호출 메서드로 변경
 
         # create_obj()에 들어오는 kwargs 중에, Clause.values(상수필드의 'where' 등의 value)에 해당하는 것만 추출해서,
         # set_query()에 입력해준다.
@@ -214,8 +218,10 @@ class ObjectMixin(BaseMixin):
         """
         create 내부 obj객체   or   외부 model객체.fill() 용 self메서드
         obj = cls._create_obj()
-        obj.fill(**kwargs)
+        obj.fill(**kwargs) -> True or False (is_filled)
         """
+        is_filled = False
+
         for column_name, new_value in kwargs.items():
             # 1) form.data(dict) 에 더불어 오는 keyword => 에러X 무시하고 넘어가기
             if column_name in ['csrf_token', 'submit'] or column_name.startswith('hidden_'):
@@ -238,7 +244,10 @@ class ObjectMixin(BaseMixin):
             else:
                 setattr(self, column_name, new_value)
 
-        return self
+            is_filled = True
+
+        # return self
+        return is_filled
 
     # self + async -> session관련 메서드 obj.save() or user.save()
     # for cls create
@@ -249,19 +258,23 @@ class ObjectMixin(BaseMixin):
         2) 자체세션 -> add + flush + refresh 까지
         if commit 여부에 따라, commit
         """
-        if self.id is not None:
-            await self.session.merge(self)
-        else:
-            self.session.add(self)
-            await self.session.flush()
+        try:
+            # id를 가진 조회된객체(자체sess)상태에서 + 외부 공용sess 주입 상태일때만 merge
+            if self.id is not None and self.served:
+                await self.session.merge(self)
+            else:
+                self.session.add(self)
+                await self.session.flush()
 
-        if auto_commit:
-            await self.session.commit()
-            await self.session.refresh(self)
-            self._session = None
-            self._served = False
+            if auto_commit:
+                await self.session.commit()
+                self._session = None
+                self._served = False
 
-        return self
+            return self
+
+        except Exception as e:
+            raise SaveFailException(cls_=self.__class__, exception=e)
 
     @classmethod
     def get_column(cls, model, attr):

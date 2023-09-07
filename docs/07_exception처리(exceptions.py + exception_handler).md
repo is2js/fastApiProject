@@ -141,6 +141,7 @@ class NotFoundEmail(NotFoundException):
 #### exception_handler - 정의 하지 않은 에러를 APIException 기본 500으로 만들기
 1. **middleware(access_control)내에서 `except Exception as e`의 error가 발생해서 잡았을 때, 그 `e`를 가지고, `우리가 정의하지 에러들`를 -> `APIException`으로 변환해주는 `exception_handler.py`를 erros폴더에 생성한다.**
     - **기본 500의 에러의 최상위 부모class APIException이라는 가장 상위 부모 class의 객체로 변경해준다.**
+
 ```python
 from app.errors.exceptions import APIException
 

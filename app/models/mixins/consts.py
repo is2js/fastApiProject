@@ -27,11 +27,11 @@ class Clause(BaseStrEnum):
 
     @classmethod
     def extract_from_dict(cls, map_: dict):
-        return {key: value for key, value in map_.items() if key in Clause.values}
+        return {key.lower(): value for key, value in map_.items() if key in Clause.values}
 
     @classmethod
     def is_valid_dict(cls, map_: dict):
-        return any(clause in Clause.values for clause in map_)
+        return any(clause.lower() in Clause.values for clause in map_)
 
 
 class Logical(BaseStrEnum):

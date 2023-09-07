@@ -30,8 +30,9 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
             raise ValueError('이메일 혹은 비밀번호를 모두 입력해주세요.')
 
-        user = await Users.get_by_email(session, user_register_info.email)
-        if user:
+        # user = await Users.get_by_email(session, user_register_info.email)
+        exists_user = await Users.filter_by(session=session, email=user_register_info.email).exists()
+        if exists_user:
             # return JSONResponse(status_code=400, content=dict(message="EMAIL_EXISTS"))
             raise EmailAlreadyExistsException()
 
@@ -67,7 +68,8 @@ async def login(sns_type: SnsType, user_info: UserRegister, session: AsyncSessio
             raise ValueError('이메일 혹은 비밀번호를 모두 입력해주세요.')
 
         # 검증2) email이 존재 해야만 한다.
-        user = await Users.get_by_email(session, user_info.email)
+        # user = await Users.get_by_email(session, user_info.email)
+        user = await Users.filter_by(session=session, email=user_info.email).first()
         if not user:
             # return JSONResponse(status_code=400, content=dict(message="NO_MATCH_USER"))
             raise NoUserMatchException()

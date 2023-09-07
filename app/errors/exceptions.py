@@ -161,3 +161,34 @@ class NotFoundEmail(NotFoundException):
             detail=f"Not found User Email: {email}",
             exception=exception
         )
+
+
+# 500
+# 500 - db
+class DBException(APIException):
+    def __init__(
+            self, *,
+            code_number: [str, int] = "0",
+            detail: str = None,
+            exception: Exception = None
+    ):
+        if not isinstance(code_number, str):
+            code_number = str(code_number)
+
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code=f"{status.HTTP_500_INTERNAL_SERVER_ERROR}{code_number.zfill(4)}",
+            message="DB 에러 입니다.",
+            detail=detail,
+            exception=exception
+        )
+
+
+class SaveFailException(DBException):
+
+    def __init__(self, *, cls_=None, exception: Exception = None):
+        super().__init__(
+            code_number=1,
+            detail=f"{cls_} 데이터를 저장하는데 실패했습니다.",
+            exception=exception
+        )

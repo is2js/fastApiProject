@@ -479,6 +479,8 @@ async def get(self, *ids_, session: AsyncSession = None, **kwargs):
     raise NotImplementedError(f'객체 상태에서 get 메서드를 호출 할 수 없습니다.')
 
 ```
+
+
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

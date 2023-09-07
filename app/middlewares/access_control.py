@@ -6,11 +6,11 @@ from starlette.responses import Response, JSONResponse
 
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST
 from app.errors.exception_handler import exception_handler
-from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized
+from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized, DBException
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
-from app.utils.loggers import app_logger
+from app.utils.loggers import app_logger, db_logger
 
 
 class AccessControl(BaseHTTPMiddleware):
@@ -103,6 +103,10 @@ class AccessControl(BaseHTTPMiddleware):
 
             response = JSONResponse(status_code=error.status_code, content=error_dict)
             # logging
-            await app_logger.log(request, error=error)
+            if isinstance(error, DBException):
+                # APIException의 하위 DBException class부터 검사하여 해당하면 db_logger로 찍기
+                await db_logger.log(request, error=error)
+            else:
+                await app_logger.log(request, error=error)
 
         return response

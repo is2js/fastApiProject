@@ -530,7 +530,9 @@ async def get_db(self):
     - commit한다면, **커밋 직후, db변화상황 받는 refrsh( 객체 ) 이후 반환**하도록 작성한다.
     - `DB로 보내는 메서드들(add제외 모두)`은 모두 `await`로 호출한다.
     - **`commit`으로 close되면, `self._session/self._served를 초기화 `해준다.**
-
+    - **commit이후 refresh하려 했지만, `refresh는 session에 add를 포함하고 있어서 다음호출시 문제가 되서 삭제`한다.**
+    - **추가) update메서드 처럼 self용 메서드는 `조회후 id`를 가진 상태이지만, `set_session에 의해 session을 가진 상태`이다.**
+        - **`merge`는 `id를 가진 조회된 상태(자체sess가능성)` + `served된 외부공용session일때만 적용`하도록 한다.**
 ```python
 class ObjectMixin(BaseMixin):
     __abstract__ = True
@@ -542,7 +544,7 @@ class ObjectMixin(BaseMixin):
         2) 자체세션 -> add + flush + refresh 까지
         if commit 여부에 따라, commit
         """
-        if self.id is not None:
+        if self.id is not None and self.served:
             await self.session.merge(self)
         else:
             self.session.add(self)
@@ -550,7 +552,7 @@ class ObjectMixin(BaseMixin):
 
         if auto_commit:
             await self.session.commit()
-            await self.session.refresh(self)
+            #await self.session.refresh(self)
             self._session = None
             self._served = False
 
