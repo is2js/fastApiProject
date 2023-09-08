@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
@@ -10,6 +11,15 @@ from app.database.conn import db
 from app.models import Users
 
 router = APIRouter()
+
+
+async def create_random_user():
+    import random
+    import string
+    random_email = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    random_email += '@gmail.com'
+    user = await Users.create(email=random_email)
+    return user
 
 
 # create가 포함된 route는 공용세션을 반드시 주입한다.
@@ -37,19 +47,32 @@ async def index(session: AsyncSession = Depends(db.session)):
     # print("order_by", await Users.order_by("id", "-id").first())
     # create시 외부공용sess없는 상태에서, auto_commit해주지 않으면, 해당객체가 session을 계속 물고 있게 된다.
     # -> user.update()시에는
-    user = await Users.create(email='abc@gmail.com')
-    # user = await Users.create(email='abc@gmail.com', auto_commit=True)
-    print("user", user)
-    print(await user.update(email='new_1_' + user.email))
-    # print(await user.update(email='new_1_' + user.email))
-    # is_filled False -> None
-    # print(await user.update(email='new_2_' + user.email, auto_commit=True))
-    print(await user.update(email='new_2_' + user.email, auto_commit=True))
-    # is_fillled True -> Users객체
+    # user = await Users.create(email='abc@gmail.com')
+    # await user.delete(auto_commit=True)
 
-    user = await Users.get(id=user.id)
-    print(await user.update(email='get_1_' + user.email))
-    print(await user.update(email='get_2_' + user.email, auto_commit=True))
+    # user = await Users.create(email='abc@gmail.com', auto_commit=True)
+    # print("user", user)
+    # print(await user.update(email='new_1_' + user.email))
+    # # print(await user.update(email='new_1_' + user.email))
+    # # is_filled False -> None
+    # # print(await user.update(email='new_2_' + user.email, auto_commit=True))
+    # print(await user.update(email='new_2_' + user.email, auto_commit=True))
+    # # is_fillled True -> Users객체
+    #
+    # user = await Users.get(id=user.id)
+    # print(await user.update(email='get_1_' + user.email))
+    # print(await user.update(email='get_2_' + user.email, auto_commit=True))
+    #
+    # user = await create_random_user()
+    # user = await Users.get(user.id, session=session)
+    # print(user)
+    # await user.delete(session=session, auto_commit=True)
+
+    user = await create_random_user()
+    # user = await Users.filter_by(id=user.id).delete() # 영속성 에러
+    user = await Users.filter_by(id=user.id).first()
+    await user.delete(auto_commit=True)
+
 
     current_time = datetime.utcnow()
     return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")

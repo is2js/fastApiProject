@@ -37,16 +37,15 @@ class Config:
 # abc(**asdict(Config()))
 # True 900
 
-
-@dataclass
 class LocalConfig(Config):
     PROJ_RELOAD: bool = True
-
     # 도커 서비스 mysql + 도커자체port 3306으로 접속
     # - host에 연결시에는 localhost + 13306
     # DB_URL: str = "mysql+pymysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
     # async 적용
     DB_URL: str = "mysql+aiomysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4"
+    DB_POOL_SIZE = 5
+    DB_MAX_OVERFLOW = 10
 
     # 미들웨어
     ALLOW_SITE = ["*"]
@@ -56,13 +55,13 @@ class LocalConfig(Config):
     LOG_BACKUP_COUNT = 1
 
 
-@dataclass
 class ProdConfig(Config):
     PROJ_RELOAD: bool = False
 
-    # CORS
+    DB_POOL_SIZE = 5
+    DB_MAX_OVERFLOW = 10
+
     ALLOW_SITE = ["*"]
-    # TRUSTED_HOST
     TRUSTED_HOSTS = ["*"]
 
     # log
@@ -75,5 +74,6 @@ def conf():
     환경변수 APP_ENV에 따라, 해당 Config객체를 추출하기
     :return: dataclass Config 객체
     """
-    config = dict(prod=ProdConfig(), local=LocalConfig())
-    return config.get(environ.get("APP_ENV", "local"))
+    config = dict(prod=ProdConfig, local=LocalConfig)
+    # return config.get(environ.get("APP_ENV", "local"))
+    return config[environ.get("APP_ENV", "local")]()

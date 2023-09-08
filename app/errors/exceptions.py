@@ -186,9 +186,19 @@ class DBException(APIException):
 
 class SaveFailException(DBException):
 
-    def __init__(self, *, cls_=None, exception: Exception = None):
+    def __init__(self, *, obj=None, exception: Exception = None):
         super().__init__(
             code_number=1,
-            detail=f"{cls_} 데이터를 저장하는데 실패했습니다.",
+            detail=f"{obj}의 데이터를 저장하는데 실패했습니다.",
+            exception=exception
+        )
+
+
+class RemoveFailException(DBException):
+
+    def __init__(self, *, obj=None, exception: Exception = None):
+        super().__init__(
+            code_number=2,
+            detail=f"{obj}의 데이터를 삭제하는데 실패했습니다.",
             exception=exception
         )

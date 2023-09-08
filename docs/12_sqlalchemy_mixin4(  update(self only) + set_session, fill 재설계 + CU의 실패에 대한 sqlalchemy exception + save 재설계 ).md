@@ -286,6 +286,19 @@ async def login(sns_type: SnsType, user_info: UserRegister, session: AsyncSessio
             raise NoUserMatchException()
 ```
 
+### 주의점 -> auto_commit 없이 2개를 동시에 호출시 -> lock에 걸린다.
+
+```python
+user = await Users.create(email='abc@gmail.com')
+user = await Users.create(email='abc@gmail.com')
+# => 앱 멈춤.
+# Lock wait timeout exceeded; try restarting transaction
+```
+```python
+    user = await Users.create(email='abc@gmail.com', auto_commit=True)
+    user = await Users.create(email='abc@gmail.com', auto_commit=True)
+```
+
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

@@ -22,8 +22,9 @@ def create_app():
     app = FastAPI()
 
     config = conf()
+    print("config", config)
     config_dict = asdict(config)
-
+    print("config_dict", config_dict)
     db.init_app(app, **config_dict)
 
     # 미들웨어 추가 (실행순서는 반대)

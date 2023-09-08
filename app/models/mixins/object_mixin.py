@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.collections import InstrumentedList
 
 from app.database.conn import db
-from app.errors.exceptions import SaveFailException
+from app.errors.exceptions import SaveFailException, DBException, APIException, RemoveFailException
 from app.models.mixins.base_mixin import BaseMixin
 from app.models.mixins.consts import Clause, OPERATOR_SPLITTER, Logical, ORDER_BY_DESC_PREFIX
 from app.models.mixins.maps import operator_map
+from app.models.utils.decorators import with_transaction
 
 
 class ObjectMixin(BaseMixin):
@@ -31,9 +32,10 @@ class ObjectMixin(BaseMixin):
         따로 안들어오면, 단순조회용으로 db에서 새발급
         """
         # 외부 X and 자신O(필드 + session) -> 아예 실행도 X
-        if not session and getattr(self, '_session', None):
+        self_session = getattr(self, '_session', None)
+        if not session and self_session : #and not self_session.get_transaction().is_active():
             return
-       
+
         # 외부 O or 자신X
         if session:
             # (외부 O) & (자신O or 자신X 노상관) -> 무조건 덮어쓰기
@@ -251,6 +253,7 @@ class ObjectMixin(BaseMixin):
 
     # self + async -> session관련 메서드 obj.save() or user.save()
     # for cls create
+    @with_transaction
     async def save(self, auto_commit=False):
         """
         obj.fill() -> obj.save() or user.fill() -> user.save()
@@ -274,7 +277,7 @@ class ObjectMixin(BaseMixin):
             return self
 
         except Exception as e:
-            raise SaveFailException(cls_=self.__class__, exception=e)
+            raise SaveFailException(obj=self, exception=e)
 
     @classmethod
     def get_column(cls, model, attr):
@@ -387,3 +390,25 @@ class ObjectMixin(BaseMixin):
 
         await self.close()
         return _one_or_none
+
+
+    @with_transaction
+    async def remove(self, auto_commit=False):
+        """
+        obj.delete() -> self.remove()
+        if commit 여부에 따라, commit
+        """
+        try:
+            # id를 가진 조회된객체(자체sess)상태에서 + 외부 공용sess 주입 상태일때만 merge
+            await self.session.delete(self)
+            await self.session.flush()
+
+            if auto_commit:
+                await self.session.commit()
+                self._session = None
+                self._served = False
+
+            return self
+
+        except Exception as e:
+            raise RemoveFailException(obj=self, exception=e)

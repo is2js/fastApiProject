@@ -164,3 +164,17 @@ class CRUDMixin(ObjectMixin):
             return None
 
         return await self.save(auto_commit=auto_commit)
+
+
+
+    @class_or_instance_method
+    async def delete(self, session: AsyncSession = None, auto_commit: bool = False):
+        raise NotImplementedError(f'delete 메서드는 객체상태에서만 호출 할 수 있습니다.')
+
+    @delete.instancemethod
+    async def delete(self, session: AsyncSession = None, auto_commit: bool = False):
+        """
+        """
+        await self.set_session(session=session)
+
+        return await self.remove(auto_commit=auto_commit)
