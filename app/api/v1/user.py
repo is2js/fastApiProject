@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 from starlette.requests import Request
 
-from app.errors.exceptions import NotFoundUserException, NotAuthorized, TokenExpiredException, NotFoundEmail
 from app.models import Users
 from app.schemas import UserMe
 
-router = APIRouter(prefix='/user')
+# router = APIRouter(prefix='/user')
+router = APIRouter()
 
 
 @router.get('/me', response_model=UserMe)

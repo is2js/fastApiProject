@@ -7,7 +7,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.database.conn import db
-# from app.models.auth import Users
 from app.models import Users
 
 router = APIRouter()
@@ -67,11 +66,12 @@ async def index(session: AsyncSession = Depends(db.session)):
     # user = await Users.get(user.id, session=session)
     # print(user)
     # await user.delete(session=session, auto_commit=True)
+    user = await Users.create(email='abcd')
+    user = await Users.create(email='abcde')
 
-    user = await create_random_user()
-    # user = await Users.filter_by(id=user.id).delete() # 영속성 에러
-    user = await Users.filter_by(id=user.id).first()
-    await user.delete(auto_commit=True)
+    # user = await create_random_user()
+    # user = await Users.filter_by(id=user.id).first()
+    # await user.delete(auto_commit=True)
 
 
     current_time = datetime.utcnow()

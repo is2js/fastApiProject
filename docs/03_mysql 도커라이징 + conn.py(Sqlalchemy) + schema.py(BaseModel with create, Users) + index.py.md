@@ -379,8 +379,9 @@ class Users(BaseModel):
 ```
 
 - **이후 init.py에는 생성된 auth의 풀경로 + `*`로 모든 class를 import시켜준다.**
+
 ```python
-from app.models.auth import *
+from app.models.user import *
 
 ```
 

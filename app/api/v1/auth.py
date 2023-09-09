@@ -2,44 +2,46 @@ import bcrypt
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 from app.database.conn import db
-from app.errors.exceptions import NotFoundException, EmailAlreadyExistsException, NoSupportException, \
-    NoUserMatchException
-# from app.models.auth import Users
+from app.errors.exceptions import (
+    EmailAlreadyExistsException,
+    NoSupportException,
+    NoUserMatchException,
+)
 from app.models import Users
-from app.schemas import SnsType, UserRegister, Token, UserToken
+from app.schemas import SnsType, UserRequest, Token, UserToken
 from app.utils.auth_utils import create_access_token
 
-router = APIRouter(prefix='/auth')
+# router = APIRouter(prefix='/auth')
+router = APIRouter()
 
 
 # async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)
-async def register(sns_type: SnsType, user_register_info: UserRegister, session: AsyncSession = Depends(db.session)):
+async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session)):
     """
     `회원가입 API`\n
     :param sns_type:
-    :param user_register_info:
+    :param user_request:
     :param session:
     :return:
     """
     if sns_type == SnsType.email:
         # 검증1) 모든 요소(email, pw)가 다들어와야한다.
-        if not user_register_info.email or not user_register_info.pw:
+        if not user_request.email or not user_request.pw:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
             raise ValueError('이메일 혹은 비밀번호를 모두 입력해주세요.')
 
         # user = await Users.get_by_email(session, user_register_info.email)
-        exists_user = await Users.filter_by(session=session, email=user_register_info.email).exists()
+        exists_user = await Users.filter_by(session=session, email=user_request.email).exists()
         if exists_user:
             # return JSONResponse(status_code=400, content=dict(message="EMAIL_EXISTS"))
             raise EmailAlreadyExistsException()
 
         # 비밀번호 해쉬 -> 해쉬된 비밀번호 + email -> user 객체 생성
-        hash_pw = bcrypt.hashpw(user_register_info.pw.encode('utf-8'), bcrypt.gensalt())
+        hash_pw = bcrypt.hashpw(user_request.pw.encode('utf-8'), bcrypt.gensalt())
         # new_user = Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
-        new_user = await Users.create(session, auto_commit=True, pw=hash_pw, email=user_register_info.email)
+        new_user = await Users.create(session, auto_commit=True, pw=hash_pw, email=user_request.email)
         # user객체 -> new_user_data (dict by pydantic) -> create_access_token -> Token Schema용 dict 반환
         new_user_data = UserToken.model_validate(new_user).model_dump(exclude={'pw', 'marketing_agree'})
         # new_user_data = UserToken(new_user).model_dump(exclude={'pw', 'marketing_agree'})
@@ -54,27 +56,27 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
 
 
 @router.post("/login/{sns_type}", status_code=200, response_model=Token)
-async def login(sns_type: SnsType, user_info: UserRegister, session: AsyncSession = Depends(db.session)):
+async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session)):
     """
     `로그인 API`\n
     :param sns_type:
-    :param user_info:
+    :param user_request:
     :return:
     """
     if sns_type == SnsType.email:
         # 검증1) 모든 요소(email, pw)가 다 들어와야한다.
-        if not user_info.email or not user_info.pw:
+        if not user_request.email or not user_request.pw:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
             raise ValueError('이메일 혹은 비밀번호를 모두 입력해주세요.')
 
         # 검증2) email이 존재 해야만 한다.
         # user = await Users.get_by_email(session, user_info.email)
-        user = await Users.filter_by(session=session, email=user_info.email).first()
+        user = await Users.filter_by(session=session, email=user_request.email).first()
         if not user:
             # return JSONResponse(status_code=400, content=dict(message="NO_MATCH_USER"))
             raise NoUserMatchException()
         # 검증3)  [입력된 pw] vs email로 등록된 DB저장 [해쉬 pw]  동일해야한다.
-        is_verified = bcrypt.checkpw(user_info.pw.encode('utf-8'), user.pw.encode('utf-8'))
+        is_verified = bcrypt.checkpw(user_request.pw.encode('utf-8'), user.pw.encode('utf-8'))
         if not is_verified:
             # return JSONResponse(status_code=400, content=dict(message="NO_MATCH_USER"))
             raise NoUserMatchException()

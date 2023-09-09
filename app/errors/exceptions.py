@@ -102,7 +102,7 @@ class NoSupportException(BadRequestException):
     def __init__(self, exception: Exception = None):
         super().__init__(
             code_number=5,
-            detail="지원하지 않는 타입입니다.",
+            detail="지원하지 않는 로그인 타입입니다.",
             exception=exception
         )
 

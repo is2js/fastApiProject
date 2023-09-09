@@ -15,22 +15,3 @@ class Users(BaseModel):
 
     # keys = relationship("ApiKeys", back_populates="users")
 
-    @classmethod
-    # async def get_by_email(cls, session: Session, email: str):
-    async def get_by_email(cls, session: AsyncSession, email: str):
-        # result = session.scalars(
-        #     select(cls).where(cls.email == email)
-        # ).first()
-
-        # result = await session.execute(
-        #     select(cls).where(cls.email == email)
-        # )
-        # result.scalars().first()
-
-        result = await session.scalars(
-            select(cls).where(cls.email == email)
-        )
-        return result.first()
-
-# if __name__ == '__main__':
-#     print(Users.test())
