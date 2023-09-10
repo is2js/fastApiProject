@@ -443,6 +443,13 @@ class ApiKeyFirstTimeResponse(ApiKeyResponse):
 ```
 - **users/apikeys로서, `1명의 유저당 여러개의 apikey가 반환`되어야하므로, `1개의 apikey response`만 일단 정의해놓고, 사용시 `List[]`로 지정해준다**
 
+4. create가 완료되었으므로, `super().create()`를 내부에서 이용한 create overide를 한다.
+    - 이 때, request schema -> model_dump()로 dict한 것을 인자로 넘기기 위해, 위쪽으로 뺀 뒤, 메서드화 해서 넘긴다.
+    - **super().create()는 BaseModel의 Mixin에서 정의해준 create가 올 것이기 때문에, `기존 ApiKeys.create()를 super().create()로 바꿔준다.`**
+### read
+1. user에 달린 apikeys는 request schema가 없이, request에서 user정보만 추출해서 처리하면 된다. 대신 **Response Schema를 `List[]`에 넣어서 list로 반환되어야한다**
+2. 
+
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

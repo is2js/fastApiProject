@@ -1,3 +1,7 @@
+import random
+import string
+from uuid import uuid4
+
 from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 
@@ -43,6 +47,27 @@ class ApiKeys(BaseModel):
         user_api_key_count = await cls.filter_by(session=session, user_id=user.id, status='active').count()
         if user_api_key_count >= MAX_API_KEY_COUNT:
             raise MaxAPIKeyCountException()
+
+    @classmethod
+    async def create(cls, session=None, user=user, **kwargs):
+        # secret_key(랜덤40글자) 생성 by alnums + random
+        alnums = string.ascii_letters + string.digits
+        secret_key = ''.join(random.choices(alnums, k=40))
+
+        # access_key( uuid4 끝 12개 + uuid4 전체)
+        access_key = None
+        while not access_key:
+            access_key_candidate = f"{str(uuid4())[:-12]}{str(uuid4())}"
+            exists_api_key = await cls.filter_by(session=session, access_key=access_key_candidate).exists()
+            if not exists_api_key:
+                access_key = access_key_candidate
+
+        new_api_key = await super().create(session=session, auto_commit=True,
+                                           user_id=user.id,
+                                           secret_key=secret_key,
+                                           access_key=access_key,
+                                           **kwargs)
+        return new_api_key
 
 
 class ApiWhiteLists(BaseModel):
