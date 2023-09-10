@@ -12,12 +12,12 @@ from app.models import Users
 router = APIRouter()
 
 
-async def create_random_user():
+async def create_random_user(session=None, auto_commit=False):
     import random
     import string
     random_email = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     random_email += '@gmail.com'
-    user = await Users.create(email=random_email)
+    user = await Users.create(email=random_email, session=session, auto_commit=auto_commit)
     return user
 
 
@@ -62,12 +62,16 @@ async def index(session: AsyncSession = Depends(db.session)):
     # print(await user.update(email='get_1_' + user.email))
     # print(await user.update(email='get_2_' + user.email, auto_commit=True))
     #
-    # user = await create_random_user()
+    user = await create_random_user(session=session, auto_commit=True)
     # user = await Users.get(user.id, session=session)
     # print(user)
     # await user.delete(session=session, auto_commit=True)
-    user = await Users.create(email='abcd')
-    user = await Users.create(email='abcde')
+    # user = await Users.create(email='ddd2d', auto_commit=True)
+    print("user.email", user.email)
+    print("user.name", user.name)
+    print("user.status", user.status)
+    print("user.created_at", user.created_at)  # error: Instance <Users at 0x7ff53ae5c610> is not bound to a Session; attribute refresh operation cannot proceed
+    # user = await Users.create(email='abcde')
 
     # user = await create_random_user()
     # user = await Users.filter_by(id=user.id).first()

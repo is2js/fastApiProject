@@ -257,13 +257,15 @@ class SQLAlchemy:
 ```
 
 - **이제 app event만 설정해주는 부분만 method로 추출해서 나눠준다.**
+
 ```python
 def init_app(self, app: FastAPI, **kwargs):
-    #...
+    # ...
     self._engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
     self._Session = sessionmaker(bind=self._engine, autocommit=False, autoflush=False, )
     self.init_app_event(app)
-    
+
+
 def init_app_event(self, app):
     @app.on_event("startup")
     def start_up():
@@ -340,10 +342,19 @@ Base = declarative_base()
 2. base.py에는 Base를 상속하는 `BaseModel`부터 생성한다.
     - 추상table으로서 abstract=True 옵션을 주고, @declarded_attr로서 tablename을 클래스의 소문자로 만든다.
     - **id, created_at, updated_at를 추가 고정필드로 생성하고, 자동으로 주어지는 id를 이용해 hash()로 hash를 만든다.**
+    - **이 때, `Preventing Implicit IO when Using AsyncSession`를 통해, ` AsyncSession(engine, expire_on_commit=False)`
+      외에 `default, server_default칼럼들을 refresh안시키기 위해`**
+    - **``를 필수로 추가해준다.**
+        - The `Column.server_default` value on the created_at column will not be refreshed by default after an INSERT;
+          instead, it is normally expired so that it can be loaded when needed. Similar behavior applies to a column
+          where the `Column.default` parameter is assigned to a SQL expression object. To access this value with asyncio, it has
+          to be refreshed within the flush process, which is achieved by setting the mapper.eager_defaults parameter on the
+          mapping:
     ```python
     class BaseModel(Base):
         __abstract__ = True  # Base상속이면서, tablename 자동화할려면 필수.
-    
+        __mapper_args__ = {"eager_defaults": True} # default칼럼 조회시마다 refresh 제거
+
         @declared_attr
         def __tablename__(cls) -> str:
             return cls.__name__.lower()
@@ -385,7 +396,8 @@ from app.models.user import *
 
 ```
 
-3. **DB table을 자동생성하기 위해, `conn.py의 init_app() 내부`에서, models패키지의 모든 테이블을 명시(모듈레벨이라서 `*` 불가) Users를 import한뒤, Base.metadata.create_all()을 self._engine으로 해준다.**
+3. **DB table을 자동생성하기 위해, `conn.py의 init_app() 내부`에서, models패키지의 모든 테이블을 명시(모듈레벨이라서 `*` 불가) Users를 import한뒤,
+   Base.metadata.create_all()을 self._engine으로 해준다.**
 
 ```python
 class SQLAlchemy:
@@ -400,7 +412,7 @@ class SQLAlchemy:
         self._engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
         self._Session = sessionmaker(bind=self._engine, autocommit=False, autoflush=False, )
         self.init_app_event(app)
-        
+
         # table 자동 생성
         from app.models import Users
         Base.metadata.create_all(bind=self._engine)

@@ -1,9 +1,14 @@
+from __future__ import annotations
+
+from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class UserMe(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     email: str = None
 
@@ -12,6 +17,22 @@ class UserMe(BaseModel):
     profile_img: Optional[str] = None
     sns_type: Optional[str] = None
 
-    class Config:
-        # orm_mode = True
-        from_attributes = True
+
+##############
+#  ApiKeys   #
+##############
+
+class ApiKeyRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_memo: Optional[str] = None
+
+
+class ApiKeyResponse(ApiKeyRequest):
+    id: int
+    access_key: str
+    created_at: datetime
+
+
+class ApiKeyFirstTimeResponse(ApiKeyResponse):
+    secret_key: str

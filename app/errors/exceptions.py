@@ -1,5 +1,7 @@
 from starlette import status
 
+from app.common.consts import MAX_API_KEY_COUNT
+
 """
 400 Bad Request
     -> email or pw 없음, email이미 존재(회원가입), email 존재X + 비밀번호 틀림(로그인) 
@@ -113,6 +115,15 @@ class NoUserMatchException(BadRequestException):
             code_number=6,
             detail="매칭되는 유저정보가 없습니다.",
             exception=exception
+        )
+
+
+class MaxAPIKeyCountException(BadRequestException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=6,
+            detail=f"API 키 생성은 {MAX_API_KEY_COUNT}개 까지 가능합니다.",
+            exception=exception,
         )
 
 

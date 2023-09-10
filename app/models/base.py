@@ -8,6 +8,7 @@ from app.models.mixins.repr_mixin import ReprMixin
 # 최상위 Mixin + ReprMixin
 class BaseModel(CRUDMixin, ReprMixin):
     __abstract__ = True  # Base상속이면서, tablename 자동화할려면 필수.
+    __mapper_args__ = {"eager_defaults": True} # # default칼럼 조회시마다 refresh 제거
 
     @declared_attr
     def __tablename__(cls) -> str:
@@ -20,4 +21,3 @@ class BaseModel(CRUDMixin, ReprMixin):
     # id가 아닌 id의 해쉬값
     def __hash__(self):
         return hash(self.id)
-

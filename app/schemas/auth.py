@@ -51,5 +51,5 @@ class UserToken(BaseModel):
 
     class Config:
         # orm_mode = True
-        from_attributes = True
-        strict = False
+        from_attributes = True # orm type을 python type으로 변환 -> 직접 변환시 .model_validate()로 Orm -> Schame변환
+        strict = False # 지정한 type과 다른 것이 들어와도 허용
