@@ -31,7 +31,7 @@
     
     
     class ApiWhiteLists(BaseModel):
-        ip_addr = Column(String(length=64), nullable=False)
+        ip_address = Column(String(length=64), nullable=False)
         api_key_id = Column(Integer, ForeignKey("apikeys.id"), nullable=False)
         api_key = relationship("ApiKeys", back_populates="whitelists",
                                foreign_keys=[api_key_id],
@@ -446,10 +446,447 @@ class ApiKeyFirstTimeResponse(ApiKeyResponse):
 4. create가 완료되었으므로, `super().create()`를 내부에서 이용한 create overide를 한다.
     - 이 때, request schema -> model_dump()로 dict한 것을 인자로 넘기기 위해, 위쪽으로 뺀 뒤, 메서드화 해서 넘긴다.
     - **super().create()는 BaseModel의 Mixin에서 정의해준 create가 올 것이기 때문에, `기존 ApiKeys.create()를 super().create()로 바꿔준다.`**
-### read
+    ```python
+    class ApiKeys(BaseModel):
+        @classmethod
+        async def create(cls, session=None, user=user, **kwargs):
+            # secret_key(랜덤40글자) 생성 by alnums + random
+            alnums = string.ascii_letters + string.digits
+            secret_key = ''.join(random.choices(alnums, k=40))
+    
+            # access_key( uuid4 끝 12개 + uuid4 전체)
+            access_key = None
+            while not access_key:
+                access_key_candidate = f"{str(uuid4())[:-12]}{str(uuid4())}"
+                exists_api_key = await cls.filter_by(session=session, access_key=access_key_candidate).exists()
+                if not exists_api_key:
+                    access_key = access_key_candidate
+    
+            new_api_key = await super().create(session=session, auto_commit=True,
+                                               user_id=user.id,
+                                               secret_key=secret_key,
+                                               access_key=access_key,
+                                               **kwargs)
+            return new_api_key
+    ```
+    ```python
+    @router.post('/apikeys', status_code=201, response_model=ApiKeyFirstTimeResponse)
+    async def create_api_key(request: Request, api_key_request: ApiKeyRequest, session: AsyncSession = Depends(db.session)):
+    
+        # request schema정보를 -> .model_dump()로 dict로 변환하여 **를 통해 키워드로 입력하여 create한다.
+        additional_info = api_key_request.model_dump()
+        new_api_key = await ApiKeys.create(session=session, user=user, **additional_info)
+    
+        return new_api_key
+    ```
+#### read
 1. user에 달린 apikeys는 request schema가 없이, request에서 user정보만 추출해서 처리하면 된다. 대신 **Response Schema를 `List[]`에 넣어서 list로 반환되어야한다**
-2. 
+    - create는 user의 현재 생성된 apikey + secret / `read는 user별 생성된 모든 apikeys(List)`
+```python
+@router.get('/apikeys', response_model=List[ApiKeyResponse])
+async def get_api_key(request: Request, session: AsyncSession = Depends(db.session)):
+    """
+    현재 User의 모든 API KEY 조회
+    :param request:
+    :param session:
+    :return:
+    """
+    user = request.state.user
+    api_keys = await ApiKeys.filter_by(session=session, user_id=user.id).all()
 
+    return api_keys
+```
+
+#### update
+- update는 users/apikeys/ 여러개 중 1개를 특정해서 수정해야하고, id를 path로 받는다. -> 인자로 path 변수를 int로 받으면 된다.
+- 이 때, 생성시 들어온 `user_memo만 수정가능`하므로, creat시 Schema를 그대로 활용한다. 
+- 수정은 `put`으로 작성한다. 응답은 수정된 key 1개를 응답한다.
+
+1. request -> user, api_key_request -> user_memo인데 **kwargs로 create/update에 입력, `path -> key_id`로 조회에 사용된다.
+    - **`해당id로 조회한 객체가 존재해야하며, 존재하더라도 상위도메인인 user의 fk와 request의 user.id가 일치`해야한다.**
+    - **path는 swagger에서 입력가능하다.**
+    ```python
+    @router.put('/apikeys/{key_id}', response_model=ApiKeyResponse)
+    async def update_api_key(
+            request: Request,
+            api_key_request: ApiKeyRequest,
+            key_id: int,
+            session: AsyncSession = Depends(db.session)
+    ):
+        """
+        User의 특정 API KEY의 user_memo 수정
+        :param request:
+        :param api_key_request:
+        :param key_id:
+        :param session:
+        :return:
+        """
+        user = request.state.user
+    
+        target_api_key = await ApiKeys.get(id=key_id)
+        # 해당 id의 key가 존재하는지 & 해당key의 상위도메인(user)이 일치하는지
+        if not target_api_key or target_api_key.user_id != user.id:
+            raise NoKeyMatchException()
+    ```
+   
+2. 예외를 정의한다.
+    ```python
+    class NoKeyMatchException(NotFoundException):
+        def __init__(self, exception: Exception = None):
+            super().__init__(
+                code_number=4,
+                detail="해당 apikey id에 매칭되는 api_key 정보가 없습니다.",
+                exception=exception
+            )
+    ```
+   
+3. update함수에 넣을 fill keyword를 Schema에서 model_dump한 dict를 입력한다.
+    ```python
+    @router.put('/apikeys/{key_id}', response_model=ApiKeyResponse)
+    async def update_api_key(
+            request: Request,
+            api_key_request: ApiKeyRequest,
+            key_id: int,
+            session: AsyncSession = Depends(db.session)
+    ):
+        user = request.state.user
+    
+        target_api_key = await ApiKeys.get(id=key_id)
+        # 해당 id의 key가 존재하는지 & 해당key의 상위도메인(user)이 일치하는지
+        if not target_api_key or target_api_key.user_id != user.id:
+            raise NoKeyMatchException()
+    
+        additional_info = api_key_request.model_dump()
+    
+        return await target_api_key.update(session=session, auto_commit=True, **additional_info)
+    ```
+   
+4. key_id로 조회후 user_id vs user.id를 비교하지말고 한꺼번에 조회한 뒤, 없으면 에러나오도록 변경하자.
+    ```python
+    @router.put('/apikeys/{key_id}', response_model=ApiKeyResponse)
+    async def update_api_key(
+            request: Request,
+            api_key_request: ApiKeyRequest,
+            key_id: int,
+            session: AsyncSession = Depends(db.session)
+    ):
+
+        user = request.state.user
+        target_api_key = await ApiKeys.filter_by(session=session, id=key_id, user_id=user.id).first()
+        if not target_api_key:
+            raise NoKeyMatchException()
+            
+        additional_info = api_key_request.model_dump()
+    
+        return await target_api_key.update(session=session, auto_commit=True, **additional_info)
+    ```
+#### delete with path id + querystring access_key
+- delete에서는 `id를 path로` 받는데, **front를 여러 사이트에 접근가능할 예정이므로, `id만으로 잘못삭제`하면 안되서 `안전장치로서, 접속자만 상시 알수 있는 기밀정보`인 access_key를 `querystring`으로 추가로 요구**한다
+- 내부 검증에서는 존재하고 상위도메인 주인을 확인한 뒤, 삭제 후 `Message 상수 Schema`를 반환해서 string만 반환해준다
+    - 상수Schema는 `response_model=지정 없이, 스키마객체를 바로 return`하게 된다.
+
+1. **삭제시 querystring으로 받을 변수(access_key)는 `:str`으로 정의만해주고, path에서 안받으면 자동 querystring이다.**
+    ```python
+    @router.delete('/apikeys/{key_id}')
+    async def create_api_key(
+            request: Request,
+            key_id: int,
+            access_key: str,
+            session: AsyncSession = Depends(db.session)
+    ):
+        #...
+    ```
+2. 상수 Schema는 resonpose_model=로 지정하는게 아니라 직접 return한다.
+    ```python
+    class Message(BaseModel):
+        message: str = None
+    
+    
+    class SuccessMessage(BaseModel):
+        message: str = "ok"
+    ```
+    ```python
+    @router.delete('/apikeys/{key_id}')
+    async def delete_api_key(
+            request: Request,
+            key_id: int,
+            access_key: str,
+            session: AsyncSession = Depends(db.session)
+    ):
+        #...
+        return SuccessMessage()
+    ```
+    ![img.png](../images/14.png)
+
+3. 이제 내부에서 user_id, key_id 외에 `access_key`까지 같이 조회를 해서 없으면 에러, 있으면 삭제한다.
+    ```python
+    @router.delete('/apikeys/{key_id}')
+    async def delete_api_key(
+            request: Request,
+            key_id: int,
+            access_key: str,
+            session: AsyncSession = Depends(db.session)
+    ):
+        user = request.state.user
+    
+        target_api_key = await ApiKeys.filter_by(session=session, id=key_id, user_id=user.id, access_key=access_key).first()
+        if not target_api_key:
+            raise NoKeyMatchException()
+   
+        await target_api_key.delete(session=session, auto_commit=True)
+    
+        return SuccessMessage()
+    
+    ```
+
+4. test할때는, user login 후 `token` 인증 후 , `key_id` 및 `access_key`까지 db에서 확인한 뒤, 테스트해야한다.
+#### cascade
+- relationship에서 `cascade="all(모든 수정/삭제 작업에)  orphant-delete(삭제시 고아가되는 자식들 모두 삭제)"`로 python레벨에서 설정하거나
+- fk칼럼의 `ForeignKey( , ondelete="CASCADE")`옵션으로, 부모삭제시=ondelete -> "자식 같이 삭제"로 만드는데, db레벨의 제약조건으로 만든다.
+- **부모삭제시 set null을 하려면 fk칼럼에서 `ondelete(부모삭제시)="SET NULL(자식은 null)"`옵션으로만 가능하다.**
+- **나는 여기서 relationship에 cascade=옵션으로 자식들을 같이 삭제시킨다.**
+```python
+class ApiKeys(BaseModel):
+    #...
+    whitelists = relationship("ApiWhiteLists", back_populates="api_key",
+                              cascade="all, delete-orphan"
+                              )
+```
+### ApiWhiteList
+- /users(request) / apikeys / `{key_id}`의 특정 apikey에 대한 / `whitelists`를 생성/조회하고, / `{list_id}`의 특정 ip에 대한 삭제를 하고, update는 없다.
+##### Schema
+1. whitelist는 ip일 뿐이라서, `request` body로는 json으로 ip_address:str만 들어온다
+    - `response는 id를 포함`해서 나가며, 생성된 `orm객체를 줘야하니 ConfigDict를 설정`해준다.
+```python
+class ApiWhiteListRequest(BaseModel):
+    ip_address: str
+
+
+class ApiWhiteListResponse(ApiWhiteListRequest):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+
+```
+
+#### Create-검증( 3단계도메인 -> 최상위user - 상위도메인 부터 연결확인부터 )
+1. **router로는 user(request), apikey(path key_id)에, `ip_address가 들어잇는 Schema`를 받아준다.**
+    - **user/apikeys/whitelists 3단계에 걸친 생산에서, 현재도메인의 `상위도메인인 apikey`가` 최상위도메인 user에 등록된 것인지 확인`부터한다.**
+    ```python
+    @router.post('/apikeys/{key_id}/whitelists', status_code=201, response_model=ApiWhiteListResponse)
+    async def create_api_white_list(
+            request: Request,
+            key_id: int,
+            white_list_request: ApiWhiteListRequest,
+            session: AsyncSession = Depends(db.session)
+    ):
+        user = request.state.user
+    
+        exists_user_api_key = await ApiKeys.filter_by(session=session, id=key_id, user_id=user.id).exists()
+        if not exists_user_api_key:
+            raise NoKeyMatchException()
+    ```
+   - **`최상위user - 상위apikey의 검증`은 현재도메인 whitelist를 CRD할 때마다 항상 확인해야하니, `메서드로 추출해`놓는다.**
+    ```python
+    class ApiKeys(BaseModel):
+        #...
+        @classmethod
+        async def check_key_owner(cls, id_, user, session=None):
+            """
+            하위도메인 Apikey가 상위도메인 user에 속해있는지 확인
+            -> 하위도메인에서 상위도메인의 fk를 이용해서 필터링해서 조회하여 있으면 해당됨.
+            """
+            exists_user_api_key = await cls.filter_by(session=session, id=id_, user_id=user.id).exists()
+            if not exists_user_api_key:
+                raise NoKeyMatchException()
+    ```
+    ```python
+    @router.post('/apikeys/{key_id}/whitelists', status_code=201, response_model=ApiWhiteListResponse)
+    async def create_api_white_list(
+            request: Request,
+            key_id: int,
+            white_list_request: ApiWhiteListRequest,
+            session: AsyncSession = Depends(db.session)
+    ):
+        user = request.state.user
+        # 상위도메인인 api_key부터, 최상위 user것인지 확인한다.
+        # -> 현재user로 등록된 해당 api_key가 존재하는지 확인한다.
+        await ApiKeys.check_key_owner(key_id, user, session=session)
+        #...
+    ```
+2. **다음으로, `ip format형식을 검증`한다**
+    - schema가 필드가 많아, 전체를 dict로 변경하려면 `.model_dump()`지만, **필드가 몇개안되는 Schema는 `스키마객체.필드`로 필요한 것을 꺼낸다.**
+    - **맨 처음 `ipaddress`모듈로, ip string의 format을 확인한다.**
+    ```python
+    @router.post('/apikeys/{key_id}/whitelists', status_code=201, response_model=ApiWhiteListResponse)
+    async def create_api_white_list(
+            request: Request,
+            key_id: int,
+            white_list_request: ApiWhiteListRequest,
+            session: AsyncSession = Depends(db.session)
+    ):
+        user = request.state.user
+        await ApiKeys.check_key_owner(key_id, user, session=session)
+
+        ip_address = white_list_request.ip_address
+   
+        # ip 형식 확인
+        try:
+            ipaddress.ip_address(ip_address)
+        except Exception as e:
+            raise InvalidIpException(ip=ip_address, exception=e)
+    
+        return ApiWhiteListResponse
+    ```
+    - 정상작동하면`auth_utils.py`로 옮기자.
+    ```python
+    # ip 형식 확인
+    await check_ip_format(ip_address)
+    ```
+    ```python
+    async def check_ip_format(ip_address):
+        try:
+            ipaddress.ip_address(ip_address)
+        except Exception as e:
+            raise InvalidIpException(ip_address, exception=e)
+    ```
+3. 400에러에서, 해당 exception을 정의해준다. ip만 받아서 표시해준다.
+    ```python
+    class InvalidIpException(BadRequestException):
+        def __init__(self, ip_address='', exception: Exception = None):
+            super().__init__(
+                code_number=9,
+                detail=f"비정상 ip({ip_address})로 접속하였습니다",
+                exception=exception
+            )
+    ```
+
+4. 이제 `MAX_API_KEY_COUNT`처럼,   `MAX_API_WHITELIST=10`로 1 key당 ip 10개까지 허용하도록 작성하고
+    - **`최대 갯수 검증`을 추가한다. create_api_key를 참고해서 classmethod로 빼서 처리되도록 한다**
+    - **이 때, apikey는 직상부모 user가 필요했지만, whitelist는 user가 필요없고, 직상위 도메인인인 api_key만 필요하다. api_key당 10개**
+    ```python
+    # API KEY
+    MAX_API_KEY_COUNT = 3
+    MAX_API_WHITE_LIST_COUNT = 10
+    ```
+    ```python
+    # max count 확인
+    await ApiWhiteLists.check_max_count(key_id, session=session)
+    ```
+    ```python
+    @classmethod
+    async def check_max_count(cls, api_key_id, session=None):
+        user_api_key_count = await cls.filter_by(session=session, api_key_id=api_key_id).count()
+        if user_api_key_count >= MAX_API_WHITE_LIST_COUNT:
+            raise MaxWhiteListCountException()
+    ```
+    ```python
+    class MaxWhiteListCountException(BadRequestException):
+        def __init__(self, exception: Exception = None):
+            super().__init__(
+                code_number=10,
+                detail=f"API 키 당 {MAX_API_WHITE_LIST_COUNT}개의 IP까지 등록 가능합니다.",
+                exception=exception,
+            )
+    ```
+
+5. **이제 생성 전 존재검증하는데 `해당ip는 자동 등록(자동 생성)`될 것이니, `이미 존재한ip라도, 생성된 것처럼 바로 return`해주면 된다.**
+    ```python
+    @router.post('/apikeys/{key_id}/whitelists', status_code=201, response_model=ApiWhiteListResponse)
+    async def create_api_white_list(
+            key_id: int,
+            white_list_request: ApiWhiteListRequest,
+            session: AsyncSession = Depends(db.session)
+    ):
+        """
+        API White List 생성
+    
+        :param key_id:
+        :param white_list_request:
+        :param session:
+        :return:
+        
+        """
+        user = request.state.user
+        # 상위도메인인 api_key부터, 최상위 user것인지 확인한다.
+        await ApiKeys.check_key_owner(key_id, user, session=session)
+    
+        # ip 형식 확인
+        ip_addr = white_list_request.ip_address
+        await check_ip_format(ip_address)
+    
+        # max count 확인
+        await ApiWhiteLists.check_max_count(key_id, session=session)
+    
+        # 생성전 존재 검증(unique필드 대신 직접 exists확인)
+        duplicated_white_list = await ApiWhiteLists.filter_by(session=session, api_key_id=key_id, ip_address=ip_address).first()
+        if duplicated_white_list:
+            return duplicated_white_list
+    
+        new_white_list = await ApiWhiteLists.create(session=session, auto_commit=True,
+                                                    api_key_id=key_id, ip_addr=ip_addr)
+    
+        return new_white_list
+    ```
+#### get
+1. 상위도메인 지정(path)으로 list로 모든 whitelist를 다 가져오게 하며, List로 응답한다.
+2. 일단 3단계 도메인이라서, 1-2도메인 검증부터 하고, 상위도메인으로 하위(현재)도메인을 모두 all()로 가져온다.
+    ```python
+    @router.get('/apikeys/{key_id}/whitelists', response_model=List[ApiWhiteListResponse])
+    async def get_api_white_list(
+            request: Request,
+            key_id: int,
+            session: AsyncSession = Depends(db.session)
+    ):
+        """
+        API White List 생성
+        :param request:
+        :param key_id:
+        :param session:
+        :return:
+        """
+        # 상위도메인인 api_key부터, 최상위 user것인지 확인한다.
+        user = request.state.user
+        await ApiKeys.check_key_owner(key_id, user, session=session)
+    
+        # 상위도메인으로 딸린 모든 현재 도메인을 조회한다.
+        white_lists = await ApiWhiteLists.filter_by(api_key_id=key_id).all()
+    
+        return white_lists
+    ```
+#### delete
+- ip_address를 저장하는 whiltelist는 update는 필요없다.
+- **특정id 지정은 모두 path로 넘어온다.**
+- delete의 응답은 상수schema를 던져준다.
+    ```python
+    @router.delete("/apikeys/{key_id}/whitelists/{list_id}")
+    async def delete_api_white_list(
+            request: Request,
+            key_id: int,
+            list_id: int,
+            session: AsyncSession = Depends(db.session)
+    ):
+        # 상위도메인인 api_key부터, 최상위 user것인지 확인한다.
+        user = request.state.user
+        await ApiKeys.check_key_owner(key_id, user, session=session)
+    
+        target_white_list = await ApiWhiteLists.filter_by(id=list_id, api_key_id=key_id).first()
+        if not target_white_list:
+            raise NoWhiteListMatchException()
+    
+        await target_white_list.delete(session=session, auto_commit=True)
+    
+        return SuccessMessage()
+    ```
+    ```python
+    class NoWhiteListMatchException(NotFoundException):
+        def __init__(self, exception: Exception = None):
+            super().__init__(
+                code_number=4,
+                detail="매칭되는 api_white_list 정보가 없습니다.",
+                exception=exception
+            )
+    ```
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

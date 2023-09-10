@@ -1,6 +1,6 @@
 from starlette import status
 
-from app.common.consts import MAX_API_KEY_COUNT
+from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 
 """
 400 Bad Request
@@ -113,7 +113,7 @@ class NoUserMatchException(BadRequestException):
     def __init__(self, exception: Exception = None):
         super().__init__(
             code_number=6,
-            detail="매칭되는 유저정보가 없습니다.",
+            detail="매칭되는 유저 정보가 없습니다.",
             exception=exception
         )
 
@@ -121,8 +121,26 @@ class NoUserMatchException(BadRequestException):
 class MaxAPIKeyCountException(BadRequestException):
     def __init__(self, exception: Exception = None):
         super().__init__(
-            code_number=6,
+            code_number=7,
             detail=f"API 키 생성은 {MAX_API_KEY_COUNT}개 까지 가능합니다.",
+            exception=exception,
+        )
+
+
+class InvalidIpException(BadRequestException):
+    def __init__(self, ip_address='', exception: Exception = None):
+        super().__init__(
+            code_number=9,
+            detail=f"비정상 ip({ip_address})로 접속하였습니다",
+            exception=exception
+        )
+
+
+class MaxWhiteListCountException(BadRequestException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=10,
+            detail=f"API 키 당 {MAX_API_WHITE_LIST_COUNT}개의 IP까지 등록 가능합니다.",
             exception=exception,
         )
 
@@ -170,6 +188,24 @@ class NotFoundEmail(NotFoundException):
         super().__init__(
             code_number=2,
             detail=f"Not found User Email: {email}",
+            exception=exception
+        )
+
+
+class NoKeyMatchException(NotFoundException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=3,
+            detail="매칭되는 api_key 정보가 없습니다.",
+            exception=exception
+        )
+
+
+class NoWhiteListMatchException(NotFoundException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=4,
+            detail="매칭되는 api_white_list 정보가 없습니다.",
             exception=exception
         )
 

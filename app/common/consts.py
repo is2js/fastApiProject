@@ -10,3 +10,4 @@ EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/v[0-9]+/auth)"
 
 # API KEY
 MAX_API_KEY_COUNT = 3
+MAX_API_WHITE_LIST_COUNT = 10

@@ -1,10 +1,11 @@
 import datetime
+import ipaddress
 import re
 
 import jwt
 
 from app.common.consts import JWT_SECRET, JWT_ALGORITHM
-from app.errors.exceptions import TokenDecodeException, TokenExpiredException
+from app.errors.exceptions import TokenDecodeException, TokenExpiredException, InvalidIpException
 
 
 async def url_pattern_check(path, pattern):
@@ -39,3 +40,10 @@ async def create_access_token(*, data: dict = None, expires_delta: int = None):
     # pyjwt로 엔코딩 -> string 반환
     encoded_jwt = jwt.encode(to_encode_data, key=JWT_SECRET, algorithm=JWT_ALGORITHM)
     return encoded_jwt
+
+
+async def check_ip_format(ip_address):
+    try:
+        ipaddress.ip_address(ip_address)
+    except Exception as e:
+        raise InvalidIpException(ip_address, exception=e)

@@ -16,7 +16,7 @@
         - AsyncSession 사용시 BaseModel의 default칼럼 refresh prevening by `__mapper_args__ = {"eager_defaults": True}`
     - 명확한 변수화(is_exists -> exists_user, reg_info -> user_register_info 등)
     - 코드 간결화(if user: return True + return False -> return True if user else False)
-    - `Pydantic v1 -> v2`
+    - `Pydantic v1 -> v2` 적용 및 Schema패키지 도입하여 세분화
         - 참고페이지: https://zenn.dev/tk_resilie/articles/fastapi0100_pydanticv2
         - .from_orm().dict()) -> .model_validate().model_dump()
         - class Config: orm_mode = True -> model_config = ConfigDict(from_attributes=True)

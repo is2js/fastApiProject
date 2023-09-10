@@ -5,8 +5,8 @@ from uuid import uuid4
 from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 
-from app.common.consts import MAX_API_KEY_COUNT
-from app.errors.exceptions import MaxAPIKeyCountException
+from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
+from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
 
 from app.models.base import BaseModel
 
@@ -40,7 +40,9 @@ class ApiKeys(BaseModel):
                         )
 
     is_whitelisted = Column(Boolean, default=False)
-    whitelists = relationship("ApiWhiteLists", back_populates="api_key")
+    whitelists = relationship("ApiWhiteLists", back_populates="api_key",
+                              cascade="all, delete-orphan"
+                              )
 
     @classmethod
     async def check_max_count(cls, user, session=None):
@@ -69,11 +71,29 @@ class ApiKeys(BaseModel):
                                            **kwargs)
         return new_api_key
 
+    @classmethod
+    async def check_key_owner(cls, id_, user, session=None):
+        """
+        하위도메인 Apikey가 상위도메인 user에 속해있는지 확인
+        -> 하위도메인에서 상위도메인의 fk를 이용해서 필터링해서 조회하여 있으면 해당됨.
+        """
+        exists_user_api_key = await cls.filter_by(session=session, id=id_, user_id=user.id).exists()
+        if not exists_user_api_key:
+            raise NoKeyMatchException()
+
 
 class ApiWhiteLists(BaseModel):
-    ip_addr = Column(String(length=64), nullable=False)
+    ip_address = Column(String(length=64), nullable=False)
+
     api_key_id = Column(Integer, ForeignKey("apikeys.id"), nullable=False)
     api_key = relationship("ApiKeys", back_populates="whitelists",
                            foreign_keys=[api_key_id],
                            uselist=False,
                            )
+
+    @classmethod
+    async def check_max_count(cls, api_key_id, session=None):
+        user_api_key_count = await cls.filter_by(session=session, api_key_id=api_key_id).count()
+        if user_api_key_count >= MAX_API_WHITE_LIST_COUNT:
+            raise MaxWhiteListCountException()
+

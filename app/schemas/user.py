@@ -36,3 +36,17 @@ class ApiKeyResponse(ApiKeyRequest):
 
 class ApiKeyFirstTimeResponse(ApiKeyResponse):
     secret_key: str
+
+
+###################
+#  ApiWhiteList   #
+###################
+
+class ApiWhiteListRequest(BaseModel):
+    ip_address: str
+
+
+class ApiWhiteListResponse(ApiWhiteListRequest):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
