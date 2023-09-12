@@ -292,7 +292,7 @@ class ObjectMixin(BaseMixin):
         return getattr(model, attr, None)
 
     @classmethod
-    def check_pk_or_unique_keyword(cls, kwargs):
+    def check_pk_or_unique_keyword(cls, **kwargs):
         identity_columns = cls.primary_key_names + cls.unique_names
         if not all(attr in identity_columns for attr in kwargs.keys()):
             raise KeyError(f'primary key or unique 칼럼을 입력해주세요.')

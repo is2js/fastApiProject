@@ -145,6 +145,33 @@ class MaxWhiteListCountException(BadRequestException):
         )
 
 
+class InvalidServiceQueryStringException(BadRequestException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=11,
+            detail=f"서비스 요청시 query string key=, timestamp= 2개를 모두 입력해주세요.",
+            exception=exception
+        )
+
+
+class InvalidServiceHeaderException(BadRequestException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=12,
+            detail=f"서비스 요청시 Header에 secret(key)가 유효하지 않습니다.",
+            exception=exception
+        )
+
+
+class InvalidServiceTimestampException(BadRequestException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=13,
+            detail=f"쿼리스트링에 포함된 타임스탬프는 KST 이며, 현재 시간 + 60초 보다 작아야 하고, 현재시간 - 60초 보다는 커야 합니다.",
+            exception=exception
+        )
+
+
 # 401
 class NotAuthorized(APIException):
 

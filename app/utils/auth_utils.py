@@ -18,6 +18,7 @@ async def decode_token(token: str):
     :param token:
     :return:
     """
+    token = token.replace("Bearer ", "")
     try:
         payload = jwt.decode(token, key=JWT_SECRET, algorithms=JWT_ALGORITHM)
         return payload

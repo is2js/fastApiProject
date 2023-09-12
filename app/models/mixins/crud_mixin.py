@@ -37,7 +37,7 @@ class CRUDMixin(ObjectMixin):
             raise KeyError(f'id or 키워드는 primary key or unique 칼럼 1개만 입력해주세요.')
 
         # 인자 검증2) kwargs가 들어왔는데, 그 값이 pk + unique list 안에 포함되지 않는다면, 탈락이다.
-        cls.check_pk_or_unique_keyword(kwargs)
+        cls.check_pk_or_unique_keyword(**kwargs)
 
         obj = await cls.create_obj(session=session)
 

@@ -257,15 +257,16 @@ async def get(cls, *ids_, session: AsyncSession = None, **kwargs):
     # ...
 
     # 인자 검증2) kwargs가 들어왔는데, 그 값이 pk + unique list 안에 포함되지 않는다면, 탈락이다.
-    await cls.check_pk_or_unique_keyword(kwargs)
+    await cls.check_pk_or_unique_keyword(**kwargs)
     # ...
 
 
 @classmethod
-async def check_pk_or_unique_keyword(cls, kwargs):
+def check_pk_or_unique_keyword(cls, **kwargs):
     identity_columns = cls.primary_key_names + cls.unique_names
     if not all(attr in identity_columns for attr in kwargs.keys()):
         raise KeyError(f'primary key or unique 칼럼을 입력해주세요.')
+
 ```
 
 2. **`칼럼명으로 column객체 추출`부분을 메서드화**

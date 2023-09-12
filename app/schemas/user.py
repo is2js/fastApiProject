@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserMe(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    email: str = None
+    email: EmailStr = None
 
     name: Optional[str] = None
     phone_number: Optional[str] = None

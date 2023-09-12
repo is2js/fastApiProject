@@ -1,3 +1,4 @@
+import contextlib
 import logging
 
 from fastapi import FastAPI
@@ -49,6 +50,7 @@ class SQLAlchemy:
         # Base.metadata.create_all(bind=self._engine.sync_engine)
 
     # def get_db(self):
+    @contextlib.asynccontextmanager
     async def get_db(self):
 
         # 초기화 X -> Session cls없을 땐 에러
@@ -67,7 +69,6 @@ class SQLAlchemy:
             raise e
         finally:
             # db_session.close()
-
             #  sqlalchemy.exc.IllegalStateChangeError: Method 'close()' can't be called here; method '_connection_for_bind()' is already in progress and this would cause an unexpected state change to <SessionTransactionState.CLOSED: 5>
             # 비동기session은 -> 이미 커밋 또는 롤백이 발생했을 때만 세션을 닫음
             if db_session.is_active:

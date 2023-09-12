@@ -28,6 +28,10 @@ async def index(session: AsyncSession = Depends(db.session)):
     `ELB 상태 체크용 API` \n
     서버의 시각을 알려줍니다.
     """
+    try:
+        await Users.get(email='abc')
+    except Exception as e:
+        raise e
     # user = Users(name='sdaf')
     # session.add(user)
     # session.commit()

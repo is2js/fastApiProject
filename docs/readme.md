@@ -1,7 +1,9 @@
 ## 프로젝트 소개
 
 - 비교적 최신 웹 프레임워크인 fastAPI를 이용해서 `소셜로그인 + 알림 API` 어플리케이션을 구현합니다.
-
+    - fastAPI선택 이유: 문서자동화, 역직렬화 속도, 비동기 지원 
+    - [참고문서](https://tech.kakaopay.com/post/image-processing-server-framework/)
+    - python 3.9 / sqlalchemy 2.0.4 이상(relationship refresh lazy load를 위함.)
 - 구현 목표
     - fastAPI, DB 등을 모두 Dockerizing 한다.
     - Test 코드를 작성하고 CI를 활용한다.
@@ -22,6 +24,10 @@
         - class Config: orm_mode = True -> model_config = ConfigDict(from_attributes=True)
     - 미들웨어 `Exceptions handling 세분화`
     - `Logger 설정 세분화`(api log <-> db log 구분하여 미들웨어에서 logging)
+
+- Todo
+    - request_service_sample.py를 test코드로 변경
+
 
 ## 설치
 

@@ -3,3 +3,4 @@
 /docker/db/mysql/data/
 /docker/db/mysql/logs/
 /logs/
+/request_service_sample.py
