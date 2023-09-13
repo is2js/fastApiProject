@@ -9,7 +9,7 @@
     - Test 코드를 작성하고 CI를 활용한다.
     - Raw query대신 sqlalchemy 2.0의 mixin 등을 구현해서 활용한다.
 
-- [참고 프로젝트](https://github.com/riseryan89/notification-api)와 차이점
+- [참고 프로젝트](https://github.com/riseryan89/notification-api) 개선 사항
     - 제작 과정 문서화 + 도커라이징 + 프로젝트 구조 변경(api패키지 도입)
     - DB table 자동 생성 적용
     - schemas.py <-> models.py 구분
@@ -24,6 +24,7 @@
         - class Config: orm_mode = True -> model_config = ConfigDict(from_attributes=True)
     - 미들웨어 `Exceptions handling 세분화`
     - `Logger 설정 세분화`(api log <-> db log 구분하여 미들웨어에서 logging)
+    - config.py 싱글톤 적용
 
 - Todo
     - request_service_sample.py를 test코드로 변경

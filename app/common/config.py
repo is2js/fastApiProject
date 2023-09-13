@@ -31,9 +31,14 @@ HOST_MAIN: str = environ.get("HOST_MAIN", "localhost")
 ## REST API SERVICE
 # kakao - 나에게 메세지 보내기
 KAKAO_SEND_ME_ACCESS_TOKEN = "Bearer " + environ.get("KAKAO_ACCESS_TOKEN")
-# "http://k.kakaocdn.net/dn/wwWjr/btrYVhCnZDF/2bgXDJth2LyIajIjILhLK0/kakaolink40_original.png"
-KAKAO_SEND_ME_IMAGE_URL: Optional[str] = "https://github.com/is3js/hospital/blob/master/images/popup/mainPopup_530x640_2.jpg?raw=true"
+KAKAO_SEND_ME_IMAGE_URL: Optional[
+    str] = "https://github.com/is3js/hospital/blob/master/images/popup/mainPopup_530x640_2.jpg?raw=true"
 KAKAO_SEND_ME_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
+
+# email
+ADMIN_GMAIL = os.getenv('ADMIN_GMAIL', None)
+ADMIN_GMAIL_APP_PASSWORD = os.getenv('ADMIN_GMAIL_APP_PASSWORD', None)
+ADMIN_GMAIL_NICKNAME = os.getenv('ADMIN_GMAIL_NICKNAME', None)
 
 
 @dataclass

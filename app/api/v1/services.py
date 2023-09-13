@@ -2,6 +2,7 @@ import json
 
 import requests
 from fastapi import APIRouter
+from starlette.background import BackgroundTasks
 from starlette.requests import Request
 
 from app.common.config import (
@@ -10,7 +11,8 @@ from app.common.config import (
     KAKAO_SEND_ME_URL
 )
 from app.errors.exceptions import KakaoSendMeMessageException
-from app.schemas import SuccessMessage, KakaoMessageRequest
+from app.schemas import SuccessMessage, KakaoMessageRequest, EmailRequest
+from app.utils.service_utils import send_mail
 
 router = APIRouter()
 
@@ -25,7 +27,7 @@ async def send_kakao(request: Request, message_request: KakaoMessageRequest):
     # TODO: 추후 임시 8시간 TOKEN(REST API 테스트 -> 토큰발급)이 아닌, REFRESH가 계속 되도록 변경
     # 헤더
     headers = {
-        'Authorization': KAKAO_SEND_ME_ACCESS_TOKEN, # Bearer uq82-Q0yOa0ITCkpqPBvgScfTEWxm0c__oHTLu7zCj102wAAAYqMOQo-
+        'Authorization': KAKAO_SEND_ME_ACCESS_TOKEN,  # Bearer uq82-Q0yOa0ITCkpqPBvgScfTEWxm0c__oHTLu7zCj102wAAAYqMOQo-
         'Content-Type': "application/x-www-form-urlencoded",
     }
 
@@ -40,7 +42,7 @@ async def send_kakao(request: Request, message_request: KakaoMessageRequest):
         "content": {
             "title": message_request.title,
             "description": message_request.message,
-            "image_url": KAKAO_SEND_ME_IMAGE_URL, # 530x640 jpg
+            "image_url": KAKAO_SEND_ME_IMAGE_URL,  # 530x640 jpg
             "image_width": 530,
             "image_height": 640,
             "link": {
@@ -76,7 +78,27 @@ async def send_kakao(request: Request, message_request: KakaoMessageRequest):
         if response.json()['result_code'] != 0:
             raise Exception
     except Exception as e:
-        # 로깅
         raise KakaoSendMeMessageException(exception=e)
+
+    return SuccessMessage()
+
+
+@router.post('/email/send_by_gmail_sync')
+async def send_by_gmail_sync(request: Request, email_request: EmailRequest):
+    mailing_list = email_request.mailing_list
+    #  [EmailRecipient(name='議곗옱�꽦', email='tingstyle@gmail.com'), ...]
+
+    send_mail(mailing_list)
+
+    return SuccessMessage()
+
+
+@router.post('/email/send_by_gmail_async')
+async def send_by_gmail_sync(request: Request, email_request: EmailRequest, background_tasks: BackgroundTasks):
+    mailing_list = email_request.mailing_list
+
+    background_tasks.add_task(
+        send_mail, mailing_list=mailing_list
+    )
 
     return SuccessMessage()
