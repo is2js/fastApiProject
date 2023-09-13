@@ -10,13 +10,14 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 
+from app.common.config import config
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST, SERVICE_PATH_REGEX
 from app.database.conn import db
 from app.errors.exception_handler import exception_handler
 from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized, DBException, \
     InvalidServiceQueryStringException, InvalidServiceHeaderException, NoKeyMatchException, \
     InvalidServiceTimestampException
-from app.models import ApiKeys, Users
+from app.models import ApiKeys
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
@@ -35,15 +36,27 @@ class AccessControl(BaseHTTPMiddleware):
         url = request.url.path
 
         try:
-            # (1) token 검사 없이 (except_path) -> endpoint로
+            # (1) token 검사(user정보) 없는 except_path -> endpoint로
             if await url_pattern_check(url, EXCEPT_PATH_REGEX):
                 ...
             elif url in EXCEPT_PATH_LIST:
                 ...
-            # (3) services router들로 들어오면, headers(secret[key]) and querystring([access]key + timestamp) ->  UserToken을 state.user에 담아 endpoint로
+            # (3) services router들로 들어오면, headers(secret[key]) and querystring([access]key + timestamp)
+            # ->  UserToken을 state.user에 담아 endpoint로
             elif await url_pattern_check(url, SERVICE_PATH_REGEX):
+
+                # (4) local(DEBUG=True) swagger로 qs + secret로는 swagger 테스트가 안되니,
+                # -> swagger에서 삽입한 Authorization으로 인증(user_token)하도록 non_service(headers-Authorization에 jwt access token)로 처리되게 한다.
+                if config.DEBUG:
+                    request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
+                    response = await call_next(request)
+                    await app_logger.log(request=request, response=response)
+                    return response
+
                 request.state.user = await self.extract_user_token_by_service(headers, query_params)
-            # (2) token 검사 후 (request 속 headers or cookies) -> UserToken을 state.user에 담아 endpoint로
+
+            # (2) service아닌 API or 템플릿 렌더링
+            #  -> token 검사 후 (request 속 headers(서비스아닌api) or cookies(템플릿렌더링)) -> UserToken을 state.user에 담아 endpoint로
             else:
                 request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
 
@@ -91,10 +104,11 @@ class AccessControl(BaseHTTPMiddleware):
     @staticmethod
     async def extract_user_token_by_non_service(headers: Headers, cookies: dict[str, str]):
         # [1] api 접속 -> headers에 token정보
-        if "Authorization" in headers.keys():
+        # if "Authorization" in headers.keys():
+        if "authorization" in headers.keys() or "Authorization" in headers.keys():
             token = headers.get("Authorization")
         # [2] 템플릿 레더링 -> cookies에서 token정보
-        elif "Authorization" in cookies.keys():
+        elif "Authorization" in cookies.keys() or "authorization" in cookies.keys():
             # 템플릿 쿠키 검사1) 키가 없으면 탈락
             cookies['Authorization'] = \
                 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwibmFtZSI6bnVsbCwicGhvbmVfbnVtYmVyIjpudWxsLCJwcm9maWxlX2ltZyI6bnVsbCwic25zX3R5cGUiOm51bGx9.6cnlgT4xWyKh5JTXxhd2kN1hLT4fawhnyBsV3scvDzU'
@@ -144,7 +158,10 @@ class AccessControl(BaseHTTPMiddleware):
     # TODO: redis cache
     @staticmethod
     async def get_api_key_with_owner(query_params_map):
-        async with db.session() as session:
+
+        # async with db.session() as session: # get_db가 async contextmanger일 때 -> db.session().__anext()__가 고장나버림
+        # => asyncgenerator를 1개만 뽑아 쓰고 싶다면, async for를 쓰자.
+        async for session in db.session():
 
             matched_api_key: Optional[ApiKeys] = await ApiKeys.filter_by(session=session,
                                                                          access_key=query_params_map['key']).first()

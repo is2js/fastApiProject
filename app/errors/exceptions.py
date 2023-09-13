@@ -172,6 +172,15 @@ class InvalidServiceTimestampException(BadRequestException):
         )
 
 
+class KakaoSendMeMessageException(BadRequestException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=14,
+            detail=f"카카오톡(나에게 메세지 보내기) 전송에 실패하였습니다.",
+            exception=exception
+        )
+
+
 # 401
 class NotAuthorized(APIException):
 

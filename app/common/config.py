@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from os import path, environ
+from os import environ
 from pathlib import Path
 from typing import Optional, Union
 from urllib import parse
@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from app.utils.singleton import SingletonMetaClass
 
+# app 설정
 # config.py의 위치에 따라 변동
 base_dir = Path(__file__).parents[2]
 
@@ -17,12 +18,22 @@ print("- Loaded .env file successfully.") if load_dotenv() \
     else print("- Failed to load .env file.")
 
 API_ENV: str = os.getenv("API_ENV", "local")
-DOCKER_MODE: bool = os.getenv("DOCKER_MODE", "true") == "true"
+DOCKER_MODE: bool = os.getenv("DOCKER_MODE", "true") == "true"  # main.py 실행시 False 체크하고 load됨.
 print(f"- API_ENV: {API_ENV}")
 print(f"- DOCKER_MODE: {DOCKER_MODE}")
 
+# database
+DB_URL_FORMAT: str = "{dialect}+{driver}://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
+
 # prod 관련
 HOST_MAIN: str = environ.get("HOST_MAIN", "localhost")
+
+## REST API SERVICE
+# kakao - 나에게 메세지 보내기
+KAKAO_SEND_ME_ACCESS_TOKEN = "Bearer " + environ.get("KAKAO_ACCESS_TOKEN")
+# "http://k.kakaocdn.net/dn/wwWjr/btrYVhCnZDF/2bgXDJth2LyIajIjILhLK0/kakaolink40_original.png"
+KAKAO_SEND_ME_IMAGE_URL: Optional[str] = "https://github.com/is3js/hospital/blob/master/images/popup/mainPopup_530x640_2.jpg?raw=true"
+KAKAO_SEND_ME_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 
 
 @dataclass
@@ -37,13 +48,13 @@ class Config(metaclass=SingletonMetaClass):
     DEBUG: bool = False  # Local main.py에서만 True가 되도록 설정 -> api/v1/services접속시 키2개요구x headers에 access_key만
 
     # database
-    DB_URL_FORMAT: str = "{dialect}+{driver}://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
     MYSQL_ROOT_PASSWORD: str = environ["MYSQL_ROOT_PASSWORD"]
     MYSQL_USER: str = environ["MYSQL_USER"]
     MYSQL_PASSWORD: str = environ.get("MYSQL_PASSWORD", "")
     MYSQL_HOST: str = "mysql"  # docker 서비스명
     MYSQL_DATABASE: str = environ["MYSQL_DATABASE"]
     MYSQL_PORT: int = int(environ.get("MYSQL_PORT", 13306))  # docker 내부용 -> 내부3306 고정
+    DB_URL: str = None  # post_init에서 동적으로 채워진다.
 
     # sqlalchemy
     DB_ECHO: bool = True
@@ -59,14 +70,16 @@ class Config(metaclass=SingletonMetaClass):
         # main.py 실행
         if not DOCKER_MODE:
             self.PORT = 8001  # main.py 전용 / docker(8000) 도는 것 대비 8001
+
             self.MYSQL_HOST = "localhost"  # main.py시 mysql port는 환경변수로
             self.MYSQL_USER = 'root'
-            self.MYSQL_PASSWORD = parse.quote("root")
+            self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
+
         # docker 실행
         else:
             self.MYSQL_PORT = 3306  # docker 전용 / 3306 고정
 
-        self.DB_URL = self.DB_URL_FORMAT.format(
+        self.DB_URL: str = DB_URL_FORMAT.format(
             dialect="mysql",
             driver="aiomysql",
             user=self.MYSQL_USER,
@@ -103,7 +116,6 @@ class LocalConfig(Config):
     DEBUG: bool = True
     # log
     LOG_BACKUP_COUNT: int = 1
-
 
 
 @dataclass
@@ -144,4 +156,3 @@ class ProdConfig(Config):
 
 
 config = Config.get()
-print("singleton config>>>", config)

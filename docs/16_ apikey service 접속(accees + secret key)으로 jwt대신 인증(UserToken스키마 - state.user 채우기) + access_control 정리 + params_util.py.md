@@ -394,11 +394,29 @@ class AccessControl(BaseHTTPMiddleware):
 
 - 일단 endpoint가 아니면 Depends(db.session)이 사용이 안된다.
 
-1. 현재 db.session asyngenerator가 있는데, `async with`로 session을 사용하려면 추가 작업 `@contextlib.asynccontextmanager`이 필요하다.
+1. ~~현재 db.session asyngenerator가 있는데, `async with`로 session을 사용하려면 추가 작업 `@contextlib.asynccontextmanager`이 필요하다.~~
     ```python
     @contextlib.asynccontextmanager
     async def get_db(self):
     # ...
+    ```
+    - **contextmanger가 되어버리면, async with을 middleware에서 session발급용으로 쓸 수 있지만, `asyncgenerator의 기능을 잃ㄱ어버린다`**
+    ```python
+    # @contextlib.asynccontextmanager
+    async def get_db(self):
+    ```
+    - **그대로 `async def + yield를 통한 asyncgenerator`를 유지 -> middleware에서 땡겨 쓸 땐, `async for`로 일시적 추출을 하면 된다.**
+    ```python
+    class AccessControl(BaseHTTPMiddleware):
+    
+        @staticmethod
+        async def get_api_key_with_owner(query_params_map):
+    
+            # async with db.session() as session: # get_db가 async contextmanger일 때 -> db.session().__anext()__가 고장나버림
+            # => asyncgenerator를 1개만 뽑아 쓰고 싶다면, async for를 쓰자.
+            async for session in db.session(): 
+    
+                matched_api_key: Optional[ApiKeys] = await ApiKeys.filter_by(session=session,
     ```
 
 2. qs로 입력된 access_key로 api_key를 조회해야한다. **이후, 해당 api_key의 user(owner)도 가져와야한다.**

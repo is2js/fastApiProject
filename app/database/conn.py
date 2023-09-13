@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
+from app.common.config import Config
+
 
 class SQLAlchemy:
 
@@ -25,7 +27,8 @@ class SQLAlchemy:
         :param kwargs:
         :return:
         """
-        database_url = kwargs.get("DB_URL", "mysql+aiomysql://travis:travis@mysql:3306/notification_api?charset=utf8mb4")
+        database_url = kwargs.get("DB_URL",
+                                  "mysql+aiomysql://travis:travis@mysql:13306/notification_api?charset=utf8mb4")
         pool_recycle = kwargs.setdefault("DB_POOL_RECYCLE", 900)
         echo = kwargs.setdefault("DB_ECHO", True)
         pool_size = kwargs.setdefault("DB_POOL_SIZE", 5)
@@ -41,7 +44,7 @@ class SQLAlchemy:
                                            pool_pre_ping=True, )
         # expire_on_commit=False가 없으면, commit 이후, Pydantic Schema에 넘길 때 에러난다.
         self._Session = async_sessionmaker(bind=self._engine, autocommit=False, autoflush=False,
-                                           expire_on_commit=False, # 필수 for schema
+                                           expire_on_commit=False,  # 필수 for schema
                                            )
 
         self.init_app_event(app)
@@ -52,7 +55,7 @@ class SQLAlchemy:
         # Base.metadata.create_all(bind=self._engine.sync_engine)
 
     # def get_db(self):
-    @contextlib.asynccontextmanager
+    # @contextlib.asynccontextmanager
     async def get_db(self):
 
         # 초기화 X -> Session cls없을 땐 에러

@@ -43,6 +43,12 @@ class ObjectMixin(BaseMixin):
         else:
             # (외부 X) and 자신X -> 새 발급
             self._session = await db.session().__anext__()
+            print(self._session)
+            # => '_AsyncGeneratorContextManager' object has no attribute 'execute'
+
+            # async with db.session() as session:
+            #     self._session = session
+
             self._served = False
 
     @property
@@ -387,7 +393,6 @@ class ObjectMixin(BaseMixin):
     async def one_or_none(self):
         result = await self.session.execute(self.query)
         _one_or_none = result.scalars().one_or_none()
-
         await self.close()
         return _one_or_none
 

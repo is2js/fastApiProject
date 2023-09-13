@@ -10,8 +10,8 @@ elif __name__ == '__main__':
         os.environ["API_ENV"] = "local"
     os.environ["DOCKER_MODE"] = "False"
 
-    from app import create_app
     from app.common.config import config
+    from app import create_app
     import uvicorn
 
     app = create_app(config)
@@ -20,7 +20,7 @@ elif __name__ == '__main__':
     uvicorn.run("main:app", port=config.PORT, reload=config.PROJ_RELOAD)
 
 else:
-    from app import create_app
     from app.common.config import config
+    from app import create_app
 
     app = create_app(config)

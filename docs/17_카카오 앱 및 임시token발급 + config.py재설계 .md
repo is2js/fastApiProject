@@ -115,7 +115,7 @@
         def __post_init__(self):
             if not DOCKER_MODE:
                 self.MYSQL_USER = 'root'
-                self.MYSQL_PASSWORD = 'root'
+                self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
                 self.MYSQL_HOST = "localhost"
     
             self.DB_URL = self.DB_URL_FORMAT.format(
@@ -390,7 +390,7 @@ class Logger:
     ```
     
 
-16. **MYSQL_PORT의 환경변수를 `docker돌때면 무조건 3306`, 그외(main.py)는 `localhost + local port`로 DB_URL을 바꿔야한다.**
+16. **MYSQL_PORT의 환경변수를 `docker돌때면 무조건 3306`, 그외(main.py)는 `localhost + local port`로 `DB_URL`을 바꿔야한다.**
     ```dotenv
     MYSQL_PORT="13306" # local main.py시(DOCKER_MODE=False)에만 (내부는 3306 고정)
     ```
@@ -406,7 +406,7 @@ class Logger:
                 self.PORT = 8001  # main.py 전용 / docker(8000) 도는 것 대비 8001
                 self.MYSQL_HOST = "localhost" # main.py시 mysql port는 환경변수로
                 self.MYSQL_USER = 'root'
-                self.MYSQL_PASSWORD = parse.quote("root")
+                self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
             # docker 실행
             else:
                 self.MYSQL_PORT = 3306  # docker 전용 / 3306 고정
@@ -417,6 +417,51 @@ class Logger:
         ports:
           - "${MYSQL_PORT}:3306"
     ```
+    
+17. **DB_URL을 이후 초기화할거면, `기본값 None으로 초기화는 해놔야한다. post_init에서 self.DB_URL을 최초 정의하면 안된다.`**
+    - DB_URL_FORMAT은 전역상수로 선언해놓고
+    - DB_URL: str = None으로 초기화해놓고
+    - post_init에서 동적 생성하도록 한다.
+
+```python
+# database
+DB_URL_FORMAT: str = "{dialect}+{driver}://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
+
+@dataclass
+class Config(metaclass=SingletonMetaClass):
+    #...
+    # database
+    MYSQL_ROOT_PASSWORD: str = environ["MYSQL_ROOT_PASSWORD"]
+    MYSQL_USER: str = environ["MYSQL_USER"]
+    MYSQL_PASSWORD: str = environ.get("MYSQL_PASSWORD", "")
+    MYSQL_HOST: str = "mysql"  # docker 서비스명
+    MYSQL_DATABASE: str = environ["MYSQL_DATABASE"]
+    MYSQL_PORT: int = int(environ.get("MYSQL_PORT", 13306))  # docker 내부용 -> 내부3306 고정
+    DB_URL: str = None # post_init에서 동적으로 채워진다.
+
+    def __post_init__(self):
+        # main.py 실행
+        if not DOCKER_MODE:
+            self.PORT = 8001  # main.py 전용 / docker(8000) 도는 것 대비 8001
+
+            self.MYSQL_HOST = "localhost"  # main.py시 mysql port는 환경변수로
+            self.MYSQL_USER = 'root'
+            self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
+
+        # docker 실행
+        else:
+            self.MYSQL_PORT = 3306  # docker 전용 / 3306 고정
+
+        self.DB_URL: str = DB_URL_FORMAT.format(
+            dialect="mysql",
+            driver="aiomysql",
+            user=self.MYSQL_USER,
+            password=parse.quote(self.MYSQL_PASSWORD),
+            host=self.MYSQL_HOST,
+            port=self.MYSQL_PORT,
+            database=self.MYSQL_DATABASE,
+        )
+```
     
 ### 기타 변수 설정
 1. `DB_URL, pool_size, max_overflow`는 Config에서 동적완성되도록 고정하고 `Local Prod에선 삭제`한다.
@@ -501,31 +546,7 @@ class Logger:
         )
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.TRUSTED_HOSTS, except_path=["/health"])
     ```
-#### local에서는 access_control service접속시, qs(access_key)+headers["secret"](key) 필요없이, headers["Authorization"]으로만 인증(User조회) 되도록
 
-### api/v1/service router
-
-1. app > api > v1 > `services.py`를 생성하고 router를 구현한다
-    - 임시로 request -> state.user.email을 꺼내 이메일을 반환하는 라우터를 만든다.
-    - **기존 user.py를 users.py로 변경한다.(복수형)**
-
-2. 해당 router를 상위 router(상위패키지의 `__init__.py`)에 include시킨다.
-    - 인증필요할 때는 dependencies를 추가해야한다.
-
-```python
-from fastapi import APIRouter, Depends
-from fastapi.security import APIKeyHeader
-
-from . import auth, users, services
-
-API_KEY_HEADER = APIKeyHeader(name='Authorization', auto_error=False)
-
-router = APIRouter()  # v1 router -> 상위 main router객체에 prefix
-router.include_router(auth.router, prefix='/auth', tags=['Authentication'])
-router.include_router(users.router, prefix='/users', tags=['Users'], dependencies=[Depends(API_KEY_HEADER)])
-router.include_router(services.router, prefix='/services', tags=['Services'], dependencies=[Depends(API_KEY_HEADER)])
-
-```
 
 ### 도커 명령어
 

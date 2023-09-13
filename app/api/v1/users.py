@@ -23,8 +23,7 @@ async def get_user(request: Request):
     :return:
     """
     user_token = request.state.user
-    user = Users.get(id=user_token.id)
-
+    user = await Users.get(id=user_token.id)
     return user
 
 
