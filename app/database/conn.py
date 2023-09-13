@@ -33,7 +33,9 @@ class SQLAlchemy:
 
         # self._engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
         # self._Session = sessionmaker(bind=self._engine, autocommit=False, autoflush=False,)
-        self._engine = create_async_engine(database_url, echo=echo, pool_recycle=pool_recycle,
+        self._engine = create_async_engine(database_url,
+                                           echo=echo,
+                                           pool_recycle=pool_recycle,
                                            pool_size=pool_size,
                                            max_overflow=max_overflow,
                                            pool_pre_ping=True, )

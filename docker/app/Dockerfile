@@ -25,3 +25,8 @@ RUN python -m pip install --upgrade pip && \
     pip install -r requirements.txt --root-user-action=ignore && \
     rm -rf /root/.cache/pip && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+
+#ENTRYPOINT ["uvicorn", "app.main:app"]
+ENTRYPOINT ["uvicorn", "main:app"]
+# CMD -> 추가인자이며, docker-compose.yml의 command가 덮어쓰게 된다.

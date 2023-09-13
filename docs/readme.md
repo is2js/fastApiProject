@@ -1,7 +1,7 @@
 ## 프로젝트 소개
 
 - 비교적 최신 웹 프레임워크인 fastAPI를 이용해서 `소셜로그인 + 알림 API` 어플리케이션을 구현합니다.
-    - fastAPI선택 이유: 문서자동화, 역직렬화 속도, 비동기 지원 
+    - fastAPI선택 이유: 문서자동화, 역직렬화 속도, 비동기 지원
     - [참고문서](https://tech.kakaopay.com/post/image-processing-server-framework/)
     - python 3.9 / sqlalchemy 2.0.4 이상(relationship refresh lazy load를 위함.)
 - 구현 목표
@@ -28,20 +28,25 @@
 - Todo
     - request_service_sample.py를 test코드로 변경
 
-
 ## 설치
 
 ---
 
-1. 도커가 있는 환경
+1. `.env` PORT 관련
+    - fastAPI: docker 포팅은 환경변수 `PORT`(내부 8000고정) / local main.py 실행시 `8001` 고정 
+    - mysql: docker 포팅은 환경변수 + local main.py 실행 `MYSQL_PORT`(내부 3306고정) -> DB_URL / docker 돌때만 `3306`고정
+        - host: docker돌면서 docker service명 `MYSQL_HOST`  / local main.py 실행시 `localhost` 고정
+        - user: docker 돌면 `MYSQL_USER/PASSWORD` / local main.py 실행시 `root/root`로 설정
+
+2. 도커가 있는 환경
     ```shell
     git clone
     .env.dev -> .env 변경 및 내용 수정
    
-    docker-compose up -d (포트 - api:8010, mysdql: 13306)
+    docker-compose up -d (포트 - api:8000, mysdql: 13306)
     ```
 
-2. 도커가 없는 환경
+3. 도커가 없는 환경
     ```shell
     git clone
     .env.dev -> .env 변경 및 내용 수정 (기본 포트 - api:8010, mysdql: 13306)

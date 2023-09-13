@@ -9,6 +9,7 @@
     - **현재파일(`__file__`)의 절대주소에서 path.dirname()로 부모폴더로 1단계씩 가서, `프로젝트폴더(root)`를 찾아 base_dir을 잡는다.**
         - 확인은, print + 직접실행으로 찍어본다.
     - 상속될 부모 Config를 잡아놓고, **@dataclass를 씌워서, `BASE_DIR`, `DB_POOL_RECYCLE`, `DB_ECHO`여부를 기본으로 작성해준다.**
+    - **dataclass에서는 type힌트를 안적어주면 안나타난다.**
 ```python
 from dataclasses import dataclass, asdict
 from os import path
@@ -24,7 +25,7 @@ class Config:
     """
     기본 Configuration
     """
-    BASE_DIR = base_dir
+    BASE_DIR:str = base_dir
 
     DB_POOL_RECYCLE: int = 900
     DB_ECHO: bool = True

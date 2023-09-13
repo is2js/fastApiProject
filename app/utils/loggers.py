@@ -9,7 +9,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 from starlette.requests import Request
 
-from app.common.config import conf
+from app.common.config import config
 
 
 class Logger:
@@ -22,10 +22,11 @@ class Logger:
         "CRITICAL": logging.CRITICAL,
     }
 
-    def __init__(self, log_name, backup_count=conf().LOG_BACKUP_COUNT):
+    # def __init__(self, log_name, backup_count=conf().LOG_BACKUP_COUNT):
+    def __init__(self, log_name, backup_count=config.LOG_BACKUP_COUNT):
         self.log_name = log_name
         # logger의 'APP', "DB" 등 이름에 따라 자체 폴더 경로 + 파일이름 생성
-        self.log_dir = os.path.join(conf().LOG_DIR, self.log_name)
+        self.log_dir = os.path.join(config.LOG_DIR, self.log_name)
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir, exist_ok=True)
         self.log_file = os.path.join(self.log_dir, f'{self.log_name}.log')
