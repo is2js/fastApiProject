@@ -227,6 +227,10 @@
     
     ```
    
+#### 추후 MailingList 모델 및 CRUD를 만들 것
+- 참고: https://github.com/madcowfred/evething/blob/2926ce0afe656f932140a944e07cbc99c6ef7143/thing/models/mailinglist.py
+
+
 #### async로 오래걸리는 동기유틸메서드를 수행 by BackgroundTask를 주입해서 사용
 ```python
 from starlette.background import BackgroundTasks
