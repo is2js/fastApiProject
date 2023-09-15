@@ -15,3 +15,7 @@ class EmailRecipient(BaseModel):
 
 class EmailRequest(BaseModel):
     mailing_list: List[EmailRecipient]
+
+
+class SESRequest(BaseModel):
+    recipients: Optional[List[str]] = None

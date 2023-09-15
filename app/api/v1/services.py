@@ -8,11 +8,11 @@ from starlette.requests import Request
 from app.common.config import (
     KAKAO_SEND_ME_ACCESS_TOKEN,
     KAKAO_SEND_ME_IMAGE_URL,
-    KAKAO_SEND_ME_URL
+    KAKAO_SEND_ME_URL, ADMIN_GMAIL
 )
 from app.errors.exceptions import KakaoSendMeMessageException
-from app.schemas import SuccessMessage, KakaoMessageRequest, EmailRequest
-from app.utils.service_utils import send_mail
+from app.schemas import SuccessMessage, KakaoMessageRequest, EmailRequest, SESRequest
+from app.utils.service_utils import send_mail, send_mail_by_ses
 
 router = APIRouter()
 
@@ -76,7 +76,7 @@ async def send_kakao(request: Request, message_request: KakaoMessageRequest):
         response.raise_for_status()
         # 카카오의 응답 중 result_code가 0이 아니면 에러
         if response.json()['result_code'] != 0:
-            raise Exception
+            raise KakaoSendMeMessageException()
     except Exception as e:
         raise KakaoSendMeMessageException(exception=e)
 
@@ -100,5 +100,25 @@ async def send_by_gmail_async(request: Request, email_request: EmailRequest, bac
     background_tasks.add_task(
         send_mail, mailing_list=mailing_list
     )
+
+    return SuccessMessage()
+
+
+@router.post('/email/send_by_ses')
+async def send_by_ses(request: Request, ses_request: SESRequest, background_tasks: BackgroundTasks):
+    print(ses_request.recipients)
+    await send_mail_by_ses(
+        sender=f"인증앱 admin<{ADMIN_GMAIL}>",
+        recipients=ses_request.recipients,  # List[str] 없으면, [운영자 gmail(ses 인증 메일)]이 입력됨.
+        mail_title="안녕하세요! 한의원 인증앱 입니다.",  # 메일 제목
+        template_greetings="아래 사항을 확인해주세요.",  # 제목1) 고객님, xxxx
+        template_introduction="문제가 발견되었습니다.",  # - yyyy
+        template_title="ISSUE",  # 제목2) zzzz
+        template_description="해당 링크 <a href='https://hani.chojaeseong.com'>공지사항</a>를 통해 확인해주세요",
+    )
+
+    # background_tasks.add_task(
+    #     send_mail, mailing_list=mailing_list
+    # )
 
     return SuccessMessage()

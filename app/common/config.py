@@ -25,7 +25,7 @@ print(f"- DOCKER_MODE: {DOCKER_MODE}")
 # database
 DB_URL_FORMAT: str = "{dialect}+{driver}://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
 
-# prod 관련
+# prod
 HOST_MAIN: str = environ.get("HOST_MAIN", "localhost")
 
 ## REST API SERVICE
@@ -39,6 +39,11 @@ KAKAO_SEND_ME_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
 ADMIN_GMAIL = os.getenv('ADMIN_GMAIL', None)
 ADMIN_GMAIL_APP_PASSWORD = os.getenv('ADMIN_GMAIL_APP_PASSWORD', None)
 ADMIN_GMAIL_NICKNAME = os.getenv('ADMIN_GMAIL_NICKNAME', None)
+
+# aws ses
+AWS_ACCESS_KEY: str = environ.get("AWS_ACCESS_KEY", None)
+AWS_SECRET_KEY: str = environ.get("AWS_SECRET_KEY", None)
+AWS_SES_AUTHORIZED_EMAIL: str = environ.get("AWS_SES_AUTHORIZED_EMAIL", None)
 
 
 @dataclass
@@ -66,6 +71,9 @@ class Config(metaclass=SingletonMetaClass):
     DB_POOL_RECYCLE: int = 900
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
+
+    # prod or aws-ses
+    HOST_MAIN: str = HOST_MAIN
 
     # middleware
     TRUSTED_HOSTS: list[str] = field(default_factory=lambda: ["*"])
@@ -149,15 +157,6 @@ class ProdConfig(Config):
     )
 
 
-# def conf():
-#     """
-#     Config객체들을, 환경별(key) -> value의 dict로 만들어놓고,
-#     환경변수 APP_ENV에 따라, 해당 Config객체를 추출하기
-#     :return: dataclass Config 객체
-#     """
-#     config = dict(prod=ProdConfig, local=LocalConfig)
-#     # return config.get(environ.get("APP_ENV", "local"))
-#     return config[environ.get("APP_ENV", "local")]()
-
-
 config = Config.get()
+# config = Config.get(option='prod')
+# print(config)
