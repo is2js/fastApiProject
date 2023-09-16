@@ -1,10 +1,11 @@
+
 from sqlalchemy import select, text, Table, Subquery, Alias, and_, or_, func, exists, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.collections import InstrumentedList
 
 from app.database.conn import db
-from app.errors.exceptions import SaveFailException, DBException, APIException, RemoveFailException
+from app.errors.exceptions import SaveFailException, RemoveFailException
 from app.models.mixins.base_mixin import BaseMixin
 from app.models.mixins.consts import Clause, OPERATOR_SPLITTER, Logical, ORDER_BY_DESC_PREFIX
 from app.models.mixins.maps import operator_map
@@ -21,8 +22,9 @@ class ObjectMixin(BaseMixin):
         self._session = None
         self._served = None  # 공용 session 받은 여부
 
+
     # def _set_session(self, session: Session = None):
-    async def set_session(self, session: Session = None):
+    async def set_session(self, session: AsyncSession = None):
         """
         외부 공용 session -> 덮어쓰기 + served
         외부 공용 session X ->  
@@ -33,7 +35,7 @@ class ObjectMixin(BaseMixin):
         """
         # 외부 X and 자신O(필드 + session) -> 아예 실행도 X
         self_session = getattr(self, '_session', None)
-        if not session and self_session : #and not self_session.get_transaction().is_active():
+        if not session and self_session:  # and not self_session.get_transaction().is_active():
             return
 
         # 외부 O or 자신X
@@ -41,13 +43,14 @@ class ObjectMixin(BaseMixin):
             # (외부 O) & (자신O or 자신X 노상관) -> 무조건 덮어쓰기
             self._session, self._served = session, True
         else:
-            # (외부 X) and 자신X -> 새 발급
-            self._session = await db.session().__anext__()
-            print(self._session)
-            # => '_AsyncGeneratorContextManager' object has no attribute 'execute'
+            if not getattr(self, "scoped_session"):
+                raise Exception(f'세션 주입이 안되었습니다. >> Base.scoped_session = db.scoped_session')
 
-            # async with db.session() as session:
-            #     self._session = session
+            # (외부 X) and 자신X -> 새 발급
+            # self._session = await db.session().__anext__()
+            # async with self.scoped_session() as self_session:
+            #     self._session = self_session
+            self._session = self.scoped_session()
 
             self._served = False
 
@@ -259,8 +262,8 @@ class ObjectMixin(BaseMixin):
 
     # self + async -> session관련 메서드 obj.save() or user.save()
     # for cls create
-    @with_transaction
-    async def save(self, auto_commit=False):
+    # @with_transaction
+    async def save(self, auto_commit=False, refresh=False):
         """
         obj.fill() -> obj.save() or user.fill() -> user.save()
         1) 공용세션(served) -> merge (add + flush + refresh / update + flush + refresh)
@@ -277,8 +280,15 @@ class ObjectMixin(BaseMixin):
 
             if auto_commit:
                 await self.session.commit()
-                self._session = None
-                self._served = False
+                # 외부세션이라면 commit하고도 쓸 수 있게 +
+                # 자체세션이라면, commit하고 refresh True인 경우 계속 쓸 수 있게
+                if refresh:
+                    await self.session.refresh(self)
+                # refresh면, 해당객체를 쓴다는 말인데, 외부 공용세션 세션삭제x/served삭제x -> 노상관
+                # 자체세션이 -> 계속 쓸것이므로, sesion삭제 안하도록 if/else를 나눈다.
+                else:
+                    self._session = None
+                    self._served = False
 
             return self
 
@@ -396,8 +406,7 @@ class ObjectMixin(BaseMixin):
         await self.close()
         return _one_or_none
 
-
-    @with_transaction
+    # @with_transaction
     async def remove(self, auto_commit=False):
         """
         obj.delete() -> self.remove()

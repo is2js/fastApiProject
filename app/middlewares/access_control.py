@@ -1,10 +1,6 @@
-import asyncio
-import re
 import time
 from typing import Optional
 
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.datastructures import Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -52,7 +48,7 @@ class AccessControl(BaseHTTPMiddleware):
                     response = await call_next(request)
                     await app_logger.log(request=request, response=response)
                     return response
-
+                # print("service")
                 request.state.user = await self.extract_user_token_by_service(headers, query_params)
 
             # (2) service아닌 API or 템플릿 렌더링
@@ -161,16 +157,26 @@ class AccessControl(BaseHTTPMiddleware):
 
         # async with db.session() as session: # get_db가 async contextmanger일 때 -> db.session().__anext()__가 고장나버림
         # => asyncgenerator를 1개만 뽑아 쓰고 싶다면, async for를 쓰자.
-        async for session in db.session():
+        # async for session in db.session():
 
-            matched_api_key: Optional[ApiKeys] = await ApiKeys.filter_by(session=session,
-                                                                         access_key=query_params_map['key']).first()
+        async with db.scoped_session() as session:
+            # print("session", session)
+
+            matched_api_key: Optional[ApiKeys] = await ApiKeys.filter_by(
+                session=session,
+                access_key=query_params_map['key']
+            ).first()
+
+            # print("matched_api_key", matched_api_key)
+
             if not matched_api_key:
                 raise NoKeyMatchException()
 
             # user객체는, relationship으로 가져온다. lazy인데, 2.0.4버전에서는 refresh로 relationship을 load할 수 있다.
             await session.refresh(matched_api_key, attribute_names=["user"])
+            # print("matched_api_key.user", matched_api_key.user)
+
             if not matched_api_key.user:
                 raise NotFoundUserException()
 
-        return matched_api_key
+            return matched_api_key

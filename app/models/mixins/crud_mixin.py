@@ -11,15 +11,15 @@ class CRUDMixin(ObjectMixin):
 
     # @classmethod
     @class_or_instance_method
-    async def create(cls, session: AsyncSession = None, auto_commit=False, **kwargs):
+    async def create(cls, session: AsyncSession = None, auto_commit=False, refresh=False, **kwargs):
         obj = await cls.create_obj(session=session)
         if kwargs:
             obj.fill(**kwargs)
 
-        return await obj.save(auto_commit=auto_commit)
+        return await obj.save(auto_commit=auto_commit, refresh=refresh)
 
     @create.instancemethod
-    async def create(self, session: AsyncSession = None, auto_commit=False, **kwargs):
+    async def create(self, session: AsyncSession = None, auto_commit=False, refresh=False, **kwargs):
         raise NotImplementedError(f'객체 상태에서 create메서드를 호출 할 수 없습니다.')
 
     # @classmethod
@@ -143,7 +143,7 @@ class CRUDMixin(ObjectMixin):
         raise NotImplementedError(f'update 메서드는 객체상태에서만 호출 할 수 있습니다.')
 
     @update.instancemethod
-    async def update(self, session: AsyncSession = None, auto_commit: bool = False, **kwargs):
+    async def update(self, session: AsyncSession = None, auto_commit: bool = False, refresh=False, **kwargs):
         """
         c = Category.get(1) # c.name '카테고리1'
         c.update(name='카테고리1, auto_commit=True) # False ->  '값의 변화가 없어서 업데이트 실패'
@@ -163,7 +163,7 @@ class CRUDMixin(ObjectMixin):
         if not is_filled:
             return None
 
-        return await self.save(auto_commit=auto_commit)
+        return await self.save(auto_commit=auto_commit, refresh=refresh)
 
 
 

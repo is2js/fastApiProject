@@ -16,14 +16,14 @@ router = APIRouter()
 
 
 @router.get('/me', response_model=UserMe)
-async def get_user(request: Request):
+async def get_user(request: Request, session: AsyncSession = Depends(db.session)):
     """
     get my info
     :param request:
     :return:
     """
     user_token = request.state.user
-    user = await Users.get(id=user_token.id)
+    user = await Users.get(session=session, id=user_token.id)
     return user
 
 
