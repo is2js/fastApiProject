@@ -21,6 +21,8 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
         self._Session: AsyncSession | None = None  # 의존성 주입용 -> depricated
         self._scoped_session: async_scoped_session[AsyncSession] | None = None  # 자체 세션발급용
 
+        self._is_test_mode: bool = False# 테스트 여부
+
         # 2. app객체가 안들어올 경우, 빈 객체상태에서 메서드로 초기화할 수 있다.
         if app is not None:
             self.init_app(app=app, **kwargs)
@@ -38,6 +40,8 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
         echo = kwargs.setdefault("DB_ECHO", True)
         pool_size = kwargs.setdefault("DB_POOL_SIZE", 5)
         max_overflow = kwargs.setdefault("DB_MAX_OVERFLOW", 10)
+
+        self._is_test_mode = kwargs.get('TEST_MODE', False)
 
         # self._engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
         # self._Session = sessionmaker(bind=self._engine, autocommit=False, autoflush=False,)
@@ -146,8 +150,13 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
 
             # 테이블 생성 추가
             async with self.engine.begin() as conn:
+                # 테스트모드라면, 테이블 삭제하고 생성하기
+                if self._is_test_mode:
+                    await conn.run_sync(Base.metadata.drop_all)
+                    logging.info("TEST DB drop_all.")
+
                 await conn.run_sync(Base.metadata.create_all)
-                logging.info("DB create_all.")
+                logging.info("TEST" if self._is_test_mode else "" + "DB create_all.")
 
         @app.on_event("shutdown")
         async def shut_down():

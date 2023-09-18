@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass, field
 from os import environ
 from pathlib import Path
+from sys import modules
 from typing import Optional, Union
 from urllib import parse
 
@@ -17,8 +18,14 @@ base_dir = Path(__file__).parents[2]
 print("- Loaded .env file successfully.") if load_dotenv() \
     else print("- Failed to load .env file.")
 
+# pytest가 동작할 땐, .env파일의 API_ENV=""를 무시하고 "test"를 덮어쓰기 한다.
+if modules.get("pytest") is not None:
+    print("- Run in pytest.")
+    environ["API_ENV"] = "test"
+
 API_ENV: str = os.getenv("API_ENV", "local")
 DOCKER_MODE: bool = os.getenv("DOCKER_MODE", "true") == "true"  # main.py 실행시 False 체크하고 load됨.
+
 print(f"- API_ENV: {API_ENV}")
 print(f"- DOCKER_MODE: {DOCKER_MODE}")
 
@@ -53,15 +60,18 @@ class Config(metaclass=SingletonMetaClass):
     """
     BASE_DIR: str = base_dir
     LOG_DIR: str = base_dir.joinpath('logs/')
+    LOG_BACKUP_COUNT: int = 1
 
     PORT: int = int(environ.get("PORT", 8000))  # for docker
+    PROJ_RELOAD: bool = False  # local에서만 True
     DEBUG: bool = False  # Local main.py에서만 True가 되도록 설정 -> api/v1/services접속시 키2개요구x headers에 access_key만
+    TEST_MODE: bool = False  # sqlalchemy에서 TEST용 db를 지웠다 만들기 등
 
     # database
     MYSQL_ROOT_PASSWORD: str = environ["MYSQL_ROOT_PASSWORD"]
     MYSQL_USER: str = environ["MYSQL_USER"]
     MYSQL_PASSWORD: str = environ.get("MYSQL_PASSWORD", "")
-    MYSQL_HOST: str = "mysql"  # docker 서비스명
+    MYSQL_HOST: str = environ.get("MYSQL_HOST", "localhost")  # docker 서비스명
     MYSQL_DATABASE: str = environ["MYSQL_DATABASE"]
     MYSQL_PORT: int = int(environ.get("MYSQL_PORT", 13306))  # docker 내부용 -> 내부3306 고정
     DB_URL: str = None  # post_init에서 동적으로 채워진다.
@@ -72,12 +82,12 @@ class Config(metaclass=SingletonMetaClass):
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
 
-    # prod or aws-ses
-    HOST_MAIN: str = HOST_MAIN
-
     # middleware
     TRUSTED_HOSTS: list[str] = field(default_factory=lambda: ["*"])
     ALLOWED_SITES: list[str] = field(default_factory=lambda: ["*"])
+
+    # prod or aws-ses
+    HOST_MAIN: str = HOST_MAIN
 
     def __post_init__(self):
         # main.py 실행
@@ -91,6 +101,7 @@ class Config(metaclass=SingletonMetaClass):
         # docker 실행
         else:
             self.MYSQL_PORT = 3306  # docker 전용 / 3306 고정
+            print(environ.get("MYSQL_HOST"), (self.MYSQL_HOST))
 
         self.DB_URL: str = DB_URL_FORMAT.format(
             dialect="mysql",
@@ -103,42 +114,36 @@ class Config(metaclass=SingletonMetaClass):
         )
 
     @staticmethod
-    def get(
-            option: Optional[str] = None,
-    ) -> Union["LocalConfig", "ProdConfig", "TestConfig"]:
+    def get(option: Optional[str] = None) -> Union["LocalConfig", "ProdConfig", "TestConfig"]:
         if option is not None:
-            return {
-                "prod": ProdConfig,
-                "local": LocalConfig,
-                # "test": TestConfig,
-            }[option]()
+            return dict(
+                prod=ProdConfig,
+                loca=LocalConfig,
+                test=TestConfig,
+            )[option]()
+        elif API_ENV is not None:
+            return dict(
+                prod=ProdConfig,
+                loca=LocalConfig,
+                test=TestConfig,
+            )[API_ENV.lower()]()
         else:
-            if API_ENV is not None:
-                return {
-                    "prod": ProdConfig,
-                    "local": LocalConfig,
-                    # "test": TestConfig,
-                }[API_ENV.lower()]()
-            else:
-                return LocalConfig()
+            return LocalConfig()
 
 
 @dataclass
 class LocalConfig(Config):
-    PROJ_RELOAD: bool = True
-    DEBUG: bool = True
-    # log
-    LOG_BACKUP_COUNT: int = 1
+    PROJ_RELOAD: bool = True  # 자동 재시작
+    DEBUG: bool = True  # access_control service를 jwt로 처리(not access_key+ secret key)
 
 
 @dataclass
 class ProdConfig(Config):
-    PROJ_RELOAD: bool = False
     # log
     LOG_BACKUP_COUNT = 10
 
     # sqlalchemy
-    DB_ECHO: bool = True
+    DB_ECHO: bool = False
 
     # middleware
     TRUSTED_HOSTS: list = field(
@@ -157,6 +162,18 @@ class ProdConfig(Config):
     )
 
 
-config = Config.get()
-# config = Config.get(option='prod')
-# print(config)
+@dataclass
+class TestConfig(Config):
+    TEST_MODE: bool = True  # test db 관련 설정 실행
+
+    # sqlalchemy
+    DB_POOL_SIZE: int = 1
+    DB_MAX_OVERFLOW: int = 0
+
+    # db
+    # MYSQL_DATABASE: str = os.getenv('MYSQL_DATABASE_TEST', environ["MYSQL_DATABASE"] + '_test')
+    MYSQL_DATABASE: str = environ["MYSQL_DATABASE"]
+
+
+config = Config.get(option="test")
+print(config)

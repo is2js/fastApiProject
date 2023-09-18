@@ -32,6 +32,9 @@ services:
     entrypoint:
       - docker-entrypoint.sh
       - mysqld
+    networks:
+      - reverse-proxy-public
+
   api:
     build:
       context: .
@@ -55,7 +58,19 @@ services:
       - "${PORT}:8000"
 #      - "8010:8000"
     # mysql 서비스 도커를 이용하기 위함.
-    links:
-      - mysql
+#    links:
+#      - mysql
+    networks:
+      - reverse-proxy-public
     depends_on:
       - mysql
+
+
+
+networks:
+  reverse-proxy-public:
+    driver: bridge
+#    ipam:
+#      driver: default
+#      config:
+#        - subnet: 172.16.0.0/24 # subnet for traefik and other services
