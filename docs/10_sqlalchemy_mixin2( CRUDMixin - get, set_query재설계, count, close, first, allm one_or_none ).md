@@ -1131,11 +1131,12 @@ class Users(BaseModel):
     email = Column(String(length=255), nullable=True, unique=True)
 ```
 - table삭제후 자동 재생성 되도록 한다. create_all코드를 startup으로 옮긴다.
+
 ```python
 def init_app_event(self, app):
     @app.on_event("startup")
     async def start_up():
-        self._engine.connect()
+        self._async_engine.connect()
         logging.info("DB connected.")
 
         # 테이블 생성 추가

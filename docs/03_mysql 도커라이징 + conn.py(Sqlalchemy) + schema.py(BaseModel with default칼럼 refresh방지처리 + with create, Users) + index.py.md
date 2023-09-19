@@ -261,23 +261,23 @@ class SQLAlchemy:
 ```python
 def init_app(self, app: FastAPI, **kwargs):
     # ...
-    self._engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
-    self._Session = sessionmaker(bind=self._engine, autocommit=False, autoflush=False, )
+    self._async_engine = create_engine(database_url, echo=echo, pool_recycle=pool_recycle, pool_pre_ping=True, )
+    self._Session = sessionmaker(bind=self._async_engine, autocommit=False, autoflush=False, )
     self.init_app_event(app)
 
 
 def init_app_event(self, app):
     @app.on_event("startup")
     def start_up():
-        self._engine.connect()
+        self._async_engine.connect()
         from .models import Users
-        Base.metadata.create_all(bind=self._engine)
+        Base.metadata.create_all(bind=self._async_engine)
         logging.info("DB connected.")
 
     @app.on_event("shutdown")
     def shut_down():
         self._Session.close_all()
-        self._engine.dispose()
+        self._async_engine.dispose()
         logging.info("DB disconnected.")
 ```
 

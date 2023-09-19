@@ -22,7 +22,7 @@
         # ...
         self._Session: async_sessionmaker[AsyncSession] = \
             async_sessionmaker(
-            bind=self._engine, autocommit=False,
+            bind=self._async_engine, autocommit=False,
             autoflush=False,
             expire_on_commit=False,  # 필수 for schema
             )
@@ -36,7 +36,7 @@
         self._scoped_session: async_scoped_session[AsyncSession] | None = \
             async_scoped_session(
                 async_sessionmaker(
-                    bind=self._engine, autocommit=False, autoflush=False, future=True,
+                    bind=self._async_engine, autocommit=False, autoflush=False, future=True,
                     expire_on_commit=False  # refresh로 대체할려 했으나, 매번 select가 되어 필요시마다 하기로.
                 ),
                 scopefunc=current_task,
@@ -147,7 +147,7 @@
     @app.on_event("shutdown")
     async def shut_down():
         await self._scoped_session.remove() # async_scoped_session은 remove까지 꼭 해줘야한다.
-        await self._engine.dispose()
+        await self._async_engine.dispose()
         logging.info("DB disconnected.")
     ```
 
@@ -245,7 +245,7 @@
     self._scoped_session: async_scoped_session[AsyncSession] | None =
         async_scoped_session(
             async_sessionmaker(
-                bind=self._engine, autocommit=False, autoflush=False, future=True,
+                bind=self._async_engine, autocommit=False, autoflush=False, future=True,
                 expire_on_commit=False  # refresh로 대체할려 했으나, 매번 select가 되어 필요시마다 하기로.
             ),
             scopefunc=current_task,

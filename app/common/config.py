@@ -18,10 +18,12 @@ base_dir = Path(__file__).parents[2]
 print("- Loaded .env file successfully.") if load_dotenv() \
     else print("- Failed to load .env file.")
 
-# pytest가 동작할 땐, .env파일의 API_ENV=""를 무시하고 "test"를 덮어쓰기 한다.
+# pytest가 동작할 땐, .env파일의 API_ENV=를 무시하고 "test"를 덮어쓰기 한다.
+# -> 이렇게 해줌으로써, config객체를 import하면, 자동으로 testConfig로 생성되어있다.
 if modules.get("pytest") is not None:
     print("- Run in pytest.")
     environ["API_ENV"] = "test"
+    environ["DOCKER_MODE"] = "false"
 
 API_ENV: str = os.getenv("API_ENV", "local")
 DOCKER_MODE: bool = os.getenv("DOCKER_MODE", "true") == "true"  # main.py 실행시 False 체크하고 load됨.
@@ -90,18 +92,17 @@ class Config(metaclass=SingletonMetaClass):
     HOST_MAIN: str = HOST_MAIN
 
     def __post_init__(self):
-        # main.py 실행
-        if not DOCKER_MODE:
+        # main.py(not DOCKER_MODE ) or local pytest(self.TEST_MODE) 실행
+        if not DOCKER_MODE or self.TEST_MODE:
             self.PORT = 8001  # main.py 전용 / docker(8000) 도는 것 대비 8001
 
             self.MYSQL_HOST = "localhost"  # main.py시 mysql port는 환경변수로
-            self.MYSQL_USER = 'root'
-            self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
+            # self.MYSQL_USER = 'root'
+            # self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
 
-        # docker 실행
+        # not main.py  실행 -> docker or pytest
         else:
             self.MYSQL_PORT = 3306  # docker 전용 / 3306 고정
-            print(environ.get("MYSQL_HOST"), (self.MYSQL_HOST))
 
         self.DB_URL: str = DB_URL_FORMAT.format(
             dialect="mysql",
@@ -113,18 +114,19 @@ class Config(metaclass=SingletonMetaClass):
             database=self.MYSQL_DATABASE,
         )
 
+
     @staticmethod
     def get(option: Optional[str] = None) -> Union["LocalConfig", "ProdConfig", "TestConfig"]:
         if option is not None:
             return dict(
                 prod=ProdConfig,
-                loca=LocalConfig,
+                local=LocalConfig,
                 test=TestConfig,
             )[option]()
         elif API_ENV is not None:
             return dict(
                 prod=ProdConfig,
-                loca=LocalConfig,
+                local=LocalConfig,
                 test=TestConfig,
             )[API_ENV.lower()]()
         else:
@@ -171,9 +173,9 @@ class TestConfig(Config):
     DB_MAX_OVERFLOW: int = 0
 
     # db
-    # MYSQL_DATABASE: str = os.getenv('MYSQL_DATABASE_TEST', environ["MYSQL_DATABASE"] + '_test')
-    MYSQL_DATABASE: str = environ["MYSQL_DATABASE"]
+    MYSQL_DATABASE: str = os.getenv('MYSQL_DATABASE_TEST', environ["MYSQL_DATABASE"] + '_test')
+    MYSQL_HOST: str = "localhost"
 
 
-config = Config.get(option="test")
+config = Config.get()
 print(config)

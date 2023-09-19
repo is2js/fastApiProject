@@ -8,6 +8,7 @@ if __name__ == "__mp_main__":
 elif __name__ == '__main__':
     if os.getenv('API_ENV') != 'test':
         os.environ["API_ENV"] = "local"
+
     os.environ["DOCKER_MODE"] = "False"
 
     from app.common.config import config
@@ -20,6 +21,7 @@ elif __name__ == '__main__':
     uvicorn.run("main:app", port=config.PORT, reload=config.PROJ_RELOAD)
 
 else:
+    # docker 용
     from app.common.config import config
     from app import create_app
 

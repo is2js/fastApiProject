@@ -23,13 +23,15 @@
 10. 실행편집 > `+` > Pytest 체크 후 > 경로 설정
 
 ### Test Conifg 작성
-1. `pytest`로 작동할 때만, 환경변수 `API_ENV`에 .env파일을 무시하고 `test`로 덮어쓰기 한다.
+1. **load_dotenv이후 `pytest`로 작동할 때만, 환경변수 `API_ENV`에 .env파일을 무시하고 `test`로 덮어쓰기 한다.**
     - modules.get("pytest")를 사용하여 현재 환경에서 pytest 모듈이 로드되었는지 확인합니다.
+    - **이게 이써야, `pytest실행시 config객체 import`할 때, TestConfig상태로 메모리에 띄워져있을 것이다.**
     ```python
     # pytest가 동작할 땐, .env파일의 API_ENV=""를 무시하고 "test"를 덮어쓰기 한다.
     if modules.get("pytest") is not None:
         print("- Run in pytest.")
         environ["API_ENV"] = "test"
+        environ["DOCKER_MODE"] = "false"
     API_ENV: str = os.getenv("API_ENV", "local")
     DOCKER_MODE: bool = os.getenv("DOCKER_MODE", "true") == "true"  # main.py 실행시 False 체크하고 load됨.
     ```
@@ -131,56 +133,42 @@
     
     ```
 
-### sqlalchemy init_app에서 config의 TEST_MODE 상태를 저장하기
-
-1. create_app에서 db.init_app의 kwargs(config-> dict -> kwargs) 에서 TEST_MODE여부을 받을 수 있가 만들어놓기
+8. **추가로, `main.py`(DOCKER_MODE <- False ) vs `DOCKER_MODE`(not main.py)의 상태에서 `pytest`로 실행도, False로 실행되어야한다**
     ```python
-    class SQLAlchemy(metaclass=SingletonMetaClass):
+    # config.py 기본 True
+    DOCKER_MODE: bool = os.getenv("DOCKER_MODE", "true") == "true"
     
-        # 1. 애초에 app객체 + 키워드인자들을 받아서 생성할 수 있지만,
-        def __init__(self, app: FastAPI = None, **kwargs) -> None:
-            self._engine: AsyncEngine | None = None
-            self._Session: AsyncSession | None = None  # 의존성 주입용 -> depricated
-            self._scoped_session: async_scoped_session[AsyncSession] | None = None  # 자체 세션발급용
+    # main.py시 False
+    elif __name__ == '__main__':
+        if os.getenv('API_ENV') != 'test':
+            os.environ["API_ENV"] = "local"
             
-            self._is_test_mode: bool = False # 테스트 여부
+        os.environ["DOCKER_MODE"] = "False"
     ```
+    - **pytest가 실행되는 main.py처럼` DB_URL이 localhost + MYSQL_PORT`로 설정되게 한다.**
     ```python
-        def init_app(self, app: FastAPI, **kwargs):
-            """
-            DB 초기화
-            :param app:
-            :param kwargs:
-            :return:
-            """
-            database_url = kwargs.get("DB_URL",
-                                      "mysql+aiomysql://travis:travis@mysql:13306/notification_api?charset=utf8mb4")
-            pool_recycle = kwargs.setdefault("DB_POOL_RECYCLE", 900)
-            echo = kwargs.setdefault("DB_ECHO", True)
-            pool_size = kwargs.setdefault("DB_POOL_SIZE", 5)
-            max_overflow = kwargs.setdefault("DB_MAX_OVERFLOW", 10)
-   
-            self._is_test_mode = kwargs.get('TEST_MODE', False)
+    @dataclass
     
+    class Config(metaclass=SingletonMetaClass):
+        #...
+        def __post_init__(self):
+            # main.py(not DOCKER_MODE ) or local pytest(self.TEST_MODE) 실행
+            if not DOCKER_MODE or self.TEST_MODE:
+                self.PORT = 8001  # main.py 전용 / docker(8000) 도는 것 대비 8001
+    
+                self.MYSQL_HOST = "localhost"  # main.py시 mysql port는 환경변수로
+                self.MYSQL_USER = 'root'
+                self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
     ```
-   
 
-2. init_app_event시, `self._is_test_mode`면, 테이블 drop 하기
-    ```python
-    def init_app_event(self, app):
-        @app.on_event("startup")
-        async def start_up():
-            # 테이블 생성 추가
-            async with self.engine.begin() as conn:
-                # 테스트모드라면, 테이블 삭제하고 생성하기
-                if self._is_test_mode:
-                    await conn.run_sync(Base.metadata.drop_all)
-                    logging.info("TEST DB drop_all.")
-    
-                await conn.run_sync(Base.metadata.create_all)
-                logging.info("TEST" if self._is_test_mode else "" + "DB create_all.")
-    
-    ```
+
+
+### test_database는 따로 생성해야한다. by sqlalchemy-utils 패키지
+- **`_test` 데이터베이스가 존재해야만, engine으로 연결을 하고, `Base.metadata.create_all로 테이블생성`이 가능해진다. 안그럼 연결에러난다.**
+- https://sqlalchemy-utils.readthedocs.io/en/latest/database_helpers.html
+1. sqlalchemy-utils 패키지를 설치한다.
+2. 
+
 ### pytest 설치 및 테스트 코드 작성
 1. pytest, pytest-asyncio 패키지 설치
     - asyncio 패키지는 `@pytest.mark.asyncio`데코레이터를 통해, event loop를 매번 생성하지 않아도 되게 해준다.

@@ -34,7 +34,5 @@ def create_app(config: Config):
     # route 등록
     app.include_router(index.router)  # template or test
     app.include_router(api.router, prefix='/api')
-    # app.include_router(auth.router, tags=["Authentication"], prefix="/api")
-    # app.include_router(user.router, tags=["Users"], prefix="/api", dependencies=[Depends(API_KEY_HEADER)])
 
     return app

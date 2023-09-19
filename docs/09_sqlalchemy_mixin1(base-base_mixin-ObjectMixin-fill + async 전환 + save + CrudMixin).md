@@ -437,13 +437,13 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
     def init_app_event(self, app):
         @app.on_event("startup")
         def start_up():
-            self._engine.connect()
+            self._async_engine.connect()
             logging.info("DB connected.")
     
         @app.on_event("shutdown")
         async def shut_down():
             # self._Session.close()
-            await self._engine.dispose()
+            await self._async_engine.dispose()
             logging.info("DB disconnected.")
     ```
    
