@@ -483,6 +483,27 @@ async def api_key_info(async_client: AsyncClient, login_headers: dict[str, str])
     
         assert True
     ```
+   
+4. 텍스트용 data=옵션과, request body dict 변환 json=옵션을, method_options에 포함시켜서 옵션으로 줄 수 있도록 추가
+    ```python
+    @pytest.fixture(scope="session")
+    async def request_service(async_client: AsyncClient, api_key_info: dict[str, str]) -> Any:
+        async def func(
+                http_method: Literal["get", "post", "put", "delete", "options"],
+                service_name: str = "",
+                additional_headers: dict = {},
+                method_options: dict = {},
+                allowed_status_code: tuple = (200, 201),
+                json: dict = {},
+                data: dict = {},
+        ):
+            #...
+            method_options: dict = dict(headers=service_login_headers) | dict(json=json) | dict(data=data) | method_options
+    
+            return response_body
+    
+        return func
+    ```
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

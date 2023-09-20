@@ -27,7 +27,7 @@ async def send_kakao(request: Request, message_request: KakaoMessageRequest):
     # TODO: 추후 임시 8시간 TOKEN(REST API 테스트 -> 토큰발급)이 아닌, REFRESH가 계속 되도록 변경
     # 헤더
     headers = {
-        'Authorization': KAKAO_SEND_ME_ACCESS_TOKEN,  # Bearer uq82-Q0yOa0ITCkpqPBvgScfTEWxm0c__oHTLu7zCj102wAAAYqMOQo-
+        'Authorization': 'Bearer' + KAKAO_SEND_ME_ACCESS_TOKEN,  # Bearer uq82-Q0yOa0ITCkpqPBvgScfTEWxm0c__oHTLu7zCj102wAAAYqMOQo-
         'Content-Type': "application/x-www-form-urlencoded",
     }
 
@@ -106,15 +106,15 @@ async def send_by_gmail_async(request: Request, email_request: EmailRequest, bac
 
 @router.post('/email/send_by_ses')
 async def send_by_ses(request: Request, ses_request: SESRequest, background_tasks: BackgroundTasks):
-    print(ses_request.recipients)
     await send_mail_by_ses(
         sender=f"인증앱 admin<{ADMIN_GMAIL}>",
         recipients=ses_request.recipients,  # List[str] 없으면, [운영자 gmail(ses 인증 메일)]이 입력됨.
-        mail_title="안녕하세요! 한의원 인증앱 입니다.",  # 메일 제목
-        template_greetings="아래 사항을 확인해주세요.",  # 제목1) 고객님, xxxx
-        template_introduction="문제가 발견되었습니다.",  # - yyyy
-        template_title="ISSUE",  # 제목2) zzzz
-        template_description="해당 링크 <a href='https://hani.chojaeseong.com'>공지사항</a>를 통해 확인해주세요",
+
+        mail_title=ses_request.mail_title,  # 메일 제목
+        template_greetings=ses_request.greetings,  # 제목1) 고객님, xxxx
+        template_introduction=ses_request.introduction,  # - yyyy
+        template_title=ses_request.title,  # 제목2) zzzz
+        template_description=ses_request.description,
     )
 
     # background_tasks.add_task(

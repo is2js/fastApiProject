@@ -172,13 +172,14 @@ async def api_key_info(async_client: AsyncClient, login_headers: dict[str, str])
 @pytest.fixture(scope="session")
 async def request_service(async_client: AsyncClient, api_key_info: dict[str, str]) -> Any:
     async def func(
-        http_method: Literal["get", "post", "put", "delete", "options"],
-        service_name: str = "",
-        additional_headers: dict = {},
-        method_options: dict = {},
-        allowed_status_code: tuple = (200, 201),
+            http_method: Literal["get", "post", "put", "delete", "options"],
+            service_name: str = "",
+            additional_headers: dict = {},
+            method_options: dict = {},
+            allowed_status_code: tuple = (200, 201),
+            json: dict = {},
+            data: dict = {},
     ):
-
         # 1. 서비스 요청 url 생성 with access_key -> query_string -> url
         url: str = f"/api/v1/services"
 
@@ -198,7 +199,7 @@ async def request_service(async_client: AsyncClient, api_key_info: dict[str, str
         service_login_headers = dict(secret=hashed_secret) | additional_headers
         # {'secret': '/6Br4HL0G4QlYbmMvFD35hCQ1BDdD86MzKaAgyNao/Q='}
 
-        method_options: dict = dict(headers=service_login_headers) | method_options
+        method_options: dict = dict(headers=service_login_headers) | dict(json=json) | dict(data=data) | method_options
 
         # response = await async_client.get(url, headers=service_login_headers, )
         # response = await async_client.get(url, **method_options)

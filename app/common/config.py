@@ -39,7 +39,7 @@ HOST_MAIN: str = environ.get("HOST_MAIN", "localhost")
 
 ## REST API SERVICE
 # kakao - 나에게 메세지 보내기: 카카오개발자 > 도구 > REST API 테스트 > 내앱 선택 > 엑세스 토큰 발급
-KAKAO_SEND_ME_ACCESS_TOKEN = "Bearer " + environ.get("KAKAO_ACCESS_TOKEN")
+KAKAO_SEND_ME_ACCESS_TOKEN = environ.get("KAKAO_ACCESS_TOKEN", None)
 KAKAO_SEND_ME_IMAGE_URL: Optional[
     str] = "https://github.com/is3js/hospital/blob/master/images/popup/mainPopup_530x640_2.jpg?raw=true"
 KAKAO_SEND_ME_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"
@@ -114,7 +114,6 @@ class Config(metaclass=SingletonMetaClass):
             database=self.MYSQL_DATABASE,
         )
 
-
     @staticmethod
     def get(option: Optional[str] = None) -> Union["LocalConfig", "ProdConfig", "TestConfig"]:
         if option is not None:
@@ -169,7 +168,7 @@ class TestConfig(Config):
     TEST_MODE: bool = True  # test db 관련 설정 실행
 
     # sqlalchemy
-    DB_ECHO:bool = False
+    DB_ECHO: bool = False
     DB_POOL_SIZE: int = 1
     DB_MAX_OVERFLOW: int = 0
 

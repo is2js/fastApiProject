@@ -19,3 +19,11 @@ class EmailRequest(BaseModel):
 
 class SESRequest(BaseModel):
     recipients: Optional[List[str]] = None
+
+    mail_title: Optional[str] = None  # 메일 제목
+
+    greetings: Optional[str] = None  # 고객님, xxxx !
+    introduction: Optional[str] = None  # yyyyy
+
+    title: Optional[str] = None  # 잇슈 제목
+    description: Optional[str] = None  # 잇슈 내용
