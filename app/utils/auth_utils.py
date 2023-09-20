@@ -36,7 +36,7 @@ async def create_access_token(*, data: dict = None, expires_delta: int = None):
 
     # 복사데이터dict 만료시간 update
     if expires_delta:
-        to_encode_data.update({"exp": datetime.utcnow() + datetime.timedelta(hours=expires_delta)})
+        to_encode_data.update({"exp": datetime.datetime.utcnow() + datetime.timedelta(hours=expires_delta)})
 
     # pyjwt로 엔코딩 -> string 반환
     encoded_jwt = jwt.encode(to_encode_data, key=JWT_SECRET, algorithm=JWT_ALGORITHM)

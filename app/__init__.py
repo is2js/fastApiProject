@@ -18,7 +18,7 @@ def create_app(config: Config):
     """
     app = FastAPI()
 
-    db.init_app(app, **asdict(config))
+    db.init_app(app)
 
     # 미들웨어 추가 (실행순서는 반대)
     app.add_middleware(AccessControl)

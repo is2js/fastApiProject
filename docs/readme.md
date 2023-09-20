@@ -30,7 +30,7 @@
     - test를 위해 faker패키지를 통한 Provider 정의
 
 - Todo
-    - request_service_sample.py를 test코드로 변경
+    - ~~request_service_sample.py를 test코드로 변경~~ -> 완료
 
 ## 설치
 
@@ -64,16 +64,23 @@
 
 1. mixin내부에서 외부 주입 session이 없더라도, 자체적으로 CRUD하기 위한 session 발급을 위해, `Base.scoped_session` 변수에, db connection시 생성된 async_scoped_session객체를 주입한다.
     ```python
-    self._scoped_session: async_scoped_session[AsyncSession] | None = \
-        async_scoped_session(
-            async_sessionmaker(
-                bind=self._async_engine, autocommit=False, autoflush=False, future=True,
-                expire_on_commit=False  # refresh로 대체할려 했으나, 매번 select가 되어 필요시마다 하기로.
-            ),
-            scopefunc=current_task,
-        )
+    class SQLAlchemy(metaclass=SingletonMetaClass):
+        #...
+        self._scoped_session: async_scoped_session[AsyncSession] | None = \
+            async_scoped_session(
+                async_sessionmaker(
+                    bind=self._async_engine, autocommit=False, autoflush=False, future=True,
+                    expire_on_commit=False  # refresh로 대체할려 했으나, 매번 select가 되어 필요시마다 하기로.
+                ),
+                scopefunc=current_task,
+            )
     
-    Base.scoped_session = self._scoped_session
+    db = SQLAlchemy(**asdict(config))
+
+    Base = declarative_base()
+    # for mixin 자체 세션 발급
+    Base.scoped_session = db.scoped_session
+
     ```
    
 2. Base를 상속한 BaseModel을 정의한 뒤, 필요한 Mixin을 추가 상속해서 쓴다.

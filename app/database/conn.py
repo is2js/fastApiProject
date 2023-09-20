@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from asyncio import current_task, shield
+from dataclasses import asdict
 from typing import AsyncGenerator, Any
 
 from fastapi import FastAPI
@@ -21,21 +22,10 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
 
     # 1. 애초에 app객체 + 키워드인자들을 받아서 생성할 수 있지만,
     def __init__(self, app: FastAPI = None, **kwargs) -> None:
-        self._async_engine: AsyncEngine | None = None
-        self._Session: AsyncSession | None = None  # 의존성 주입용 -> depricated
-        self._scoped_session: async_scoped_session[AsyncSession] | None = None  # 자체 세션발급용
+        # self._async_engine: AsyncEngine | None = None
+        # self._Session: AsyncSession | None = None  # 의존성 주입용 -> depricated
+        # self._scoped_session: async_scoped_session[AsyncSession] | None = None  # 자체 세션발급용
 
-        # 2. app객체가 안들어올 경우, 빈 객체상태에서 메서드로 초기화할 수 있다.
-        if app is not None:
-            self.init_app(app=app, **kwargs)
-
-    def init_app(self, app: FastAPI, **kwargs):
-        """
-        DB 초기화
-        :param app:
-        :param kwargs:
-        :return:
-        """
         database_url = kwargs.get("DB_URL",
                                   "mysql+aiomysql://travis:travis@mysql:13306/notification_api?charset=utf8mb4")
         pool_recycle = kwargs.setdefault("DB_POOL_RECYCLE", 900)
@@ -43,13 +33,14 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
         pool_size = kwargs.setdefault("DB_POOL_SIZE", 5)
         max_overflow = kwargs.setdefault("DB_MAX_OVERFLOW", 10)
 
-        self._async_engine = create_async_engine(database_url,
-                                                 echo=echo,
-                                                 pool_recycle=pool_recycle,
-                                                 pool_size=pool_size,
-                                                 max_overflow=max_overflow,
-                                                 pool_pre_ping=True,
-                                                 )
+        self._async_engine = create_async_engine(
+            database_url,
+            echo=echo,
+            pool_recycle=pool_recycle,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_pre_ping=True,
+        )
 
         self._scoped_session: async_scoped_session[AsyncSession] | None = \
             async_scoped_session(
@@ -60,13 +51,12 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
                 scopefunc=current_task,
             )
 
-        # for mixin
-        Base.scoped_session = self._scoped_session
-
         # no docker시, database + user 정보 생성
         self.create_database_and_user()
 
-        self.init_app_event(app)
+        # 2. 혹시 app객체가 안들어올 경우만, 빈 객체상태에서 메서드로 초기화할 수 있다.
+        if app is not None:
+            self.init_app(app)
 
     def create_database_and_user(self):
         SYNC_DB_URL: str = config.DB_URL.replace("aiomysql", "pymysql") \
@@ -103,22 +93,25 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
                 # logging
                 raise e
 
-    # router Depends() 주입용
     @property
     def session(self):
         return self.get_db
 
-    # non router -> async with 발급 용
+    # router Depends() 주입용
     @property
     def scoped_session(self):
         return self._scoped_session
 
-    # 이것은 수정불가능한 내부 객체를 가져와야만 할 때
+    # non router -> async with 발급 용
     @property
     def engine(self):
         return self._async_engine
 
-    def init_app_event(self, app):
+    def init_app(self, app: FastAPI):
+        """
+        :param app:
+        :return:
+        """
         @app.on_event("startup")
         async def start_up():
             # 테이블 생성 추가
@@ -134,5 +127,8 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
             logging.info("DB disconnected.")
 
 
-db = SQLAlchemy()
+db = SQLAlchemy(**asdict(config))
+
 Base = declarative_base()
+# for mixin 자체 세션 발급
+Base.scoped_session = db.scoped_session

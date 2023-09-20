@@ -172,7 +172,7 @@ db_logger = Logger("db")
 - awati call_next() 밑에 api(view func, router)가 다 실행되고 난 뒤), response 응답 전 api log찍는다.
 1. except_path에서 응답전에 찍을 때는, `/` index가 아닐때 찍어준다.
     ```python
-    from app.utils.loggers import app_logger
+    from app.utils.logger import app_logger
     #...
     try:
         # 통과(access) 검사 시작 ------------
@@ -189,7 +189,7 @@ db_logger = Logger("db")
     - **`try: 내부 성공 response`는 -> `request + response`를 인자로 넣으면 -> 자동으로 내부에서 `.info()`를 찍는다.**
     - **`except: 내부 에러 response`는 -> `request + error(APIException)`를 인자로 넣으면 -> 자동으로 내부에서 `.error()`를 찍는다.**
     ```python
-     from app.utils.loggers import app_logger
+     from app.utils.logger import app_logger
      #...
      try:
         # ...

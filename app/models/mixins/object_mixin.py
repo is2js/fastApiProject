@@ -1,4 +1,3 @@
-
 from sqlalchemy import select, text, Table, Subquery, Alias, and_, or_, func, exists, desc, asc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -22,7 +21,6 @@ class ObjectMixin(BaseMixin):
         self._session = None
         self._served = None  # 공용 session 받은 여부
 
-
     # def _set_session(self, session: Session = None):
     async def set_session(self, session: AsyncSession = None):
         """
@@ -43,8 +41,9 @@ class ObjectMixin(BaseMixin):
             # (외부 O) & (자신O or 자신X 노상관) -> 무조건 덮어쓰기
             self._session, self._served = session, True
         else:
-            if not getattr(self, "scoped_session"):
-                raise Exception(f'세션 주입이 안되었습니다. >> Base.scoped_session = db.scoped_session')
+            if not getattr(self, "scoped_session", None):
+                raise Exception(
+                    f'자체 session발급에는 create_app -> db.init_app(app)으로 초기화하여 Base.scoped_session=self._scoped_session 주입이 필요합니다.')
 
             # (외부 X) and 자신X -> 새 발급
             # self._session = await db.session().__anext__()
@@ -282,7 +281,10 @@ class ObjectMixin(BaseMixin):
                 await self.session.commit()
                 # 외부세션이라면 commit하고도 쓸 수 있게 +
                 # 자체세션이라면, commit하고 refresh True인 경우 계속 쓸 수 있게
-                if refresh:
+                # => 자체 session이 아닌 경우에만 쓰게 한다. 자체세션을 refresh할 경우 yield한 session이 계속 남아있다.
+                # => test에서 걸린다.
+                # if refresh:
+                if self.served and refresh:
                     await self.session.refresh(self)
                 # refresh면, 해당객체를 쓴다는 말인데, 외부 공용세션 세션삭제x/served삭제x -> 노상관
                 # 자체세션이 -> 계속 쓸것이므로, sesion삭제 안하도록 if/else를 나눈다.

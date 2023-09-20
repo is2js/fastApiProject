@@ -9,10 +9,12 @@ from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
 
 from app.models.base import BaseModel
+from app.models.enums import UserStatus, ApiKeyStatus
 
 
 class Users(BaseModel):
-    status = Column(Enum("active", "deleted", "blocked"), default="active")
+    # status = Column(Enum("active", "deleted", "blocked"), default="active")
+    status = Column(Enum(UserStatus), default=UserStatus.active)
     email = Column(String(length=255), nullable=True, unique=True)
     pw = Column(String(length=2000), nullable=True)
     name = Column(String(length=255), nullable=True)
@@ -21,7 +23,17 @@ class Users(BaseModel):
     sns_type = Column(Enum("FB", "G", "K"), nullable=True)
     marketing_agree = Column(Boolean, nullable=True, default=True)
 
-    keys = relationship("ApiKeys", back_populates="user")
+    sns_token = Column(String(length=64), nullable=True, unique=True)
+    nickname = Column(String(length=30), nullable=True)
+    gender = Column(Enum("male", "female"), nullable=True)
+    age = Column(Integer, nullable=True, default=0)
+    birthday = Column(String(length=20), nullable=True)
+
+    # keys = relationship("ApiKeys", back_populates="user")
+    api_keys = relationship("ApiKeys", back_populates="user",
+                            cascade="all, delete-orphan",
+                            lazy=True
+                            )
 
 
 class ApiKeys(BaseModel):
@@ -31,10 +43,11 @@ class ApiKeys(BaseModel):
     access_key = Column(String(length=64), nullable=False, index=True)
     secret_key = Column(String(length=64), nullable=False)
     user_memo = Column(String(length=40), nullable=True)
-    status = Column(Enum("active", "stopped", "deleted"), default="active")
+    # status = Column(Enum("active", "stopped", "deleted"), default="active")
+    status = Column(Enum(ApiKeyStatus), default=ApiKeyStatus.active)
 
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    user = relationship("Users", back_populates="keys",
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("Users", back_populates="api_keys",
                         foreign_keys=[user_id],
                         uselist=False,
                         )
@@ -85,7 +98,8 @@ class ApiKeys(BaseModel):
 class ApiWhiteLists(BaseModel):
     ip_address = Column(String(length=64), nullable=False)
 
-    api_key_id = Column(Integer, ForeignKey("apikeys.id"), nullable=False)
+    # api_key_id = Column(Integer, ForeignKey("apikeys.id"), nullable=False)
+    api_key_id = Column(Integer, ForeignKey("apikeys.id", ondelete="CASCADE"), nullable=False)
     api_key = relationship("ApiKeys", back_populates="whitelists",
                            foreign_keys=[api_key_id],
                            uselist=False,
@@ -96,4 +110,3 @@ class ApiWhiteLists(BaseModel):
         user_api_key_count = await cls.filter_by(session=session, api_key_id=api_key_id).count()
         if user_api_key_count >= MAX_API_WHITE_LIST_COUNT:
             raise MaxWhiteListCountException()
-

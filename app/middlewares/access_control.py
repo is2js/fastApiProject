@@ -17,7 +17,7 @@ from app.models import ApiKeys
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
-from app.utils.loggers import app_logger, db_logger
+from app.utils.logger import app_logger, db_logger
 from app.utils.param_utils import hash_query_string
 
 
