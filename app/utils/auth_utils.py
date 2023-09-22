@@ -4,7 +4,8 @@ import re
 
 import jwt
 
-from app.common.consts import JWT_SECRET, JWT_ALGORITHM
+from app.common.consts import JWT_ALGORITHM
+from app.common.config import JWT_SECRET
 from app.errors.exceptions import TokenDecodeException, TokenExpiredException, InvalidIpException
 
 

@@ -1,13 +1,21 @@
 # JWT
-
-JWT_SECRET = 'abcd1234!'
 JWT_ALGORITHM = 'HS256'
 
+# auth
+USER_AUTH_MAX_AGE = 3600
+
 # 미들웨어
-EXCEPT_PATH_LIST = ["/", "/openapi.json"]
+EXCEPT_PATH_LIST = ["/", "/openapi.json",
+                    '/login', # fastapi-users test
+                    '/logout',
+                    '/register',
+                    '/cookie/login',
+                    # '/authenticated-route',
+                    ]
 # EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/auth)"
 EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/v[0-9]+/auth)"
 SERVICE_PATH_REGEX = "^(/api/v[0-9]+/services)"
+API_PATH_REGEX = "^(/api/v[0-9]+)"
 
 # API KEY
 MAX_API_KEY_COUNT = 3
@@ -41,3 +49,4 @@ EMAIL_CONTENTS_FORMAT = (
     'idth="378" src="{image_url}" alt="sample1.jpg" class='
     '"fr-fic fr-dii"></span></p>\n\n<p>\n<br>\n</p>'
 )
+

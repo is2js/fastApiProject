@@ -37,6 +37,9 @@ DB_URL_FORMAT: str = "{dialect}+{driver}://{user}:{password}@{host}:{port}/{data
 # prod
 HOST_MAIN: str = environ.get("HOST_MAIN", "localhost")
 
+# auth
+JWT_SECRET = environ.get("JWT_SECRET", "secret_key!!")
+
 ## REST API SERVICE
 # kakao - 나에게 메세지 보내기: 카카오개발자 > 도구 > REST API 테스트 > 내앱 선택 > 엑세스 토큰 발급
 KAKAO_SEND_ME_ACCESS_TOKEN = environ.get("KAKAO_ACCESS_TOKEN", None)
@@ -60,6 +63,10 @@ class Config(metaclass=SingletonMetaClass):
     """
     기본 Configuration
     """
+    APP_VERSION: str = environ.get("APP_VERSION", "")
+    APP_TITLE: str = environ.get("APP_TITLE", "")
+    APP_DESCRIPTION: str = environ.get("APP_DESCRIPTION", "")
+
     BASE_DIR: str = base_dir
     LOG_DIR: str = base_dir.joinpath('logs/')
     LOG_BACKUP_COUNT: int = 1
@@ -179,3 +186,4 @@ class TestConfig(Config):
 
 config = Config.get()
 print(config)
+
