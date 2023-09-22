@@ -15,6 +15,7 @@ async def test_send_kakao(request_service):
         service_name="kakao/send",
         json=json
     )
+    print("response", response)
 
     assert response['message'] == 'ok'
 

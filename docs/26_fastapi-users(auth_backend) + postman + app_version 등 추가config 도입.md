@@ -386,9 +386,9 @@ class UserRead(BaseUser[int]):
     ```
     ![img.png](../images/39.png)
 
-3. **이제 `api` router들에 대해서, `CustomJSONResponse`를 통해, dict로 기본응답시 app_version까지 찍히게 한다.**
+3. **이제 모든 router들에 대해서, `CustomJSONResponse`를 통해, dict로 기본응답시 app_version까지 찍히게 한다.**
     - 기존 dict데이터는 `data`에, 앱버전은 `version`에 찍히게 한다.
-    - **api패키지아래 `custom_response.py`를 만들고, 내부에 CustomJSONResponse class를 정의한다.**
+    - **utils > http_utils.py를 만들고 `CustomJSONResponse` class를 정의한다.**
     - **JSONResponse의 `render메서드를 오버라이딩`해서 구현한다.**
     ```python
     import typing
@@ -405,11 +405,17 @@ class UserRead(BaseUser[int]):
             })
     ```
    
-4. api > init.py의 router에서 `default_response_class=`를 지정해준다.
+4. app > init.py의 create_app에서 `default_response_class=`를 지정해준다.
     - 전체로 하고 싶으면 create_app 내부에서 `FastAPI(default_response_class=)`로 지정해줘도 된다.
     ```python
-    router = APIRouter(default_response_class=CustomJSONResponse)
-    router.include_router(v1.router, prefix="/v1")
+    def create_app(config: Config):
+    
+        app = FastAPI(
+            version=config.APP_VERSION,
+            title=config.APP_TITLE,
+            description=config.APP_DESCRIPTION,
+            default_response_class=CustomJSONResponse
+        )
     ```
    
 5. postman에서 Regiser를 해서, UserRead를 작동시키자. (Login은 응답없이 set-cookie만 작동함.)
@@ -446,6 +452,188 @@ class UserRead(BaseUser[int]):
     - headers에 쿠키값을 가지고 logout을 요청하기 때문.
     - Cookies를 확인해도 Authorization이 삭제된 상태가 된다.
 
+
+### auth router에서 기존 모델필드(pw 등) + 기존Schema 변경하기
+1. 스키마 UserRequest를 pw -> password로 변경한다.
+    ```python
+    class UserRequest(BaseModel):
+    
+        email: EmailStr = None
+        # pw: str = None
+        password: str = None
+    
+        @field_validator("email", "password")
+        def check_required_fields(cls, value):
+            if value is None:
+                raise ValueError("필수 필드입니다.")
+            return value
+    ```
+2. router에서 user객체의 필드를 pw -> password로 변경, Users.create()에서 넣어줄 필드는 hash후, hash_pw -> `hashed_password`로 변경해서 입력한다
+    ```python
+    @router.post("/register/{sns_type}", status_code=201, response_model=Token)
+    async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session)):
+        if sns_type == SnsType.email:
+            #...
+            if not user_request.email or not user_request.password:
+            #...
+            hashed_password = await hash_password(user_request.password)
+            #...
+            new_user = await Users.create(session=session, auto_commit=True, hashed_password=hashed_password,
+                                          email=user_request.email)
+    ```
+
+3. .model_dump(exclude={})시에는 db정보상태이므로 pw -> `hashed_password`로
+    ```python
+    @router.post("/login/{sns_type}", status_code=200, response_model=Token)
+    async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session)):
+        if sns_type == SnsType.email:
+            #....
+            if not user_request.email or not user_request.password:
+            token_data = UserToken.model_validate(user).model_dump(exclude={'hashed_password', 'marketing_agree'})
+            #...
+    ```
+   
+
+### fastapi-users의 hash와 기존 hash 및 decode_token 일치시키기.
+1. **fastapi-users는 `decode`를 제공하지 않고,` read_token을 제공하더라도, user모델 입력이 추가로 필요`하게 된다.**
+    - **기존 decode_token() for middle ware를 이용하기 위해서, `JWTStrategy`객체를 만들어줄 때, 기존 JWT_SECRET + `기존 ALGORHITM`을 입력해서, 기존 decode도 가능하게 만든다.**
+    ```python
+    #app/libs/auth/strategies.py
+    def get_jwt_strategy() -> JWTStrategy:
+        # return JWTStrategy(secret=JWT_SECRET, lifetime_seconds=USER_AUTH_MAX_AGE)
+        return JWTStrategy(secret=JWT_SECRET, algorithm=JWT_ALGORITHM, lifetime_seconds=USER_AUTH_MAX_AGE)
+    
+    ```
+   
+2. router에서 쓰이던 기존 자체 hash_pw() 유틸을, **fastapi-users - usermanager내부에서 사용되는 `password_helper`로 대체할 수 있게 하자.**
+    - **UserManager는 주입식으로 주어지기 때문에, user_manager -> yield user_manager.password_helper의 dependency를 정의한다.**
+    ```python
+    async def get_user_manager(user_db=Depends(get_user_db)):
+        yield UserManager(user_db)
+    
+    
+    # router에서 쿠키 아닌(no db조회) 로그인(sns_type선택한 api 회원가입/로그인)시 hash/verify하기 위함.
+    async def get_password_helper(user_manager=Depends(get_user_manager)):
+        yield user_manager.password_helper
+    ```
+   
+
+3. **이제 hash 등 password검사가 필요한 login/regiser route에서 주입하여 fastapi-users 객체에서 사용될 password_helepr를 빼와서 사용하자.**
+    - **이때, 기존의 check_pw()메서드 대신, verify_and_update메서드를 사용하며, return으로 `verify여부, 업데이트필요시 업데이트된 hashed_password or None` 튜플을 응답받으므로 활용한다.**
+    ```python
+    @router.post("/register/{sns_type}", status_code=201, response_model=Token)
+    async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session),
+                       password_helper=Depends(get_password_helper)):
+        if sns_type == SnsType.email:
+    
+            # 비밀번호 해쉬 -> 해쉬된 비밀번호 + email -> user 객체 생성
+            # hashed_password = await hash_password(user_request.password)
+            hashed_password = password_helper.hash(user_request.password)
+            #...
+            
+    @router.post("/login/{sns_type}", status_code=200, response_model=Token)
+    async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session),
+                    password_helper=Depends(get_password_helper)
+                    ):
+            #...
+            # is_verified = bcrypt.checkpw(user_request.password.encode('utf-8'), user.password.encode('utf-8'))
+            is_verified, updated_hashed_password = password_helper.verify_and_update(user_request.password,
+                                                                                      user.hashed_password)
+    
+            if not is_verified:
+                raise NoUserMatchException()
+    
+            if updated_hashed_password:
+                await user.update(session=session, auto_commit=True, hashed_password=updated_hashed_password)
+            #...
+    ```
+   
+### middleware에서, non_service2가지 중 쿠키에 의한 접속 vs api접속을 확실히 구분
+- 쿠키에 의한 접속은 템플릿 router용으로 쓰이며 `db를 조회하여 user객체 주입`할 것이나
+- 하지만 api로의 접속은 `db와 별개로서, headers 속 Authorization확인 -> decode -> UserToken schema`로서 **db조회없이 인증해결**을 하기 때문에
+    - **api 서비스 접속 확인 -> api 접속 확인 (여기까진 jwt no db 유저정보) -> cookie 접속확인(db와 연계 유저정보)순으로 검사해준다.**
+- 먼저 cookie검사 통과하게 되면, api접속에서도 이미 통과한 것으로 넘어가버릴 수 있으며
+- cookie에 의한 접속은 **`router에서 주입으로 db -> user 추출이 다 해결`되므로, middelware에서는 검사할 필요가 없다**
+```python
+class AccessControl(BaseHTTPMiddleware):
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+
+        try:
+            # (1) token 검사(user정보) 없는 except_path -> endpoint로
+            if await url_pattern_check(url, EXCEPT_PATH_REGEX):
+                ...
+            elif url in EXCEPT_PATH_LIST:
+                ...
+            # (3) services router들로 들어오면, headers(secret[key]) and querystring([access]key + timestamp)
+            # ->  UserToken을 state.user에 담아 endpoint로
+            elif await url_pattern_check(url, SERVICE_PATH_REGEX):
+
+                # (4) local(DEBUG=True) swagger로 qs + secret로는 swagger 테스트가 안되니,
+                # -> swagger에서 삽입한 Authorization으로 인증(user_token)하도록 non_service(headers-Authorization에 jwt access token)로 처리되게 한다.
+                if config.DEBUG:
+                    request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
+                    response = await call_next(request)
+                    await app_logger.log(request=request, response=response)
+                    return response
+                # print("service")
+                request.state.user = await self.extract_user_token_by_service(headers, query_params)
+
+            # (2) service아닌 API or 템플릿 렌더링
+            #  -> token 검사 후 (request 속 headers(서비스아닌api) or cookies(템플릿렌더링)) -> UserToken을 state.user에 담아 endpoint로
+            elif await url_pattern_check(url, API_PATH_REGEX):
+                print('api접속')
+                request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
+
+            #### 쿠기가 있어도, service(qs + headers -> user_token) /api접속(headers -> user_token)이 아닐시에만 -> 쿠키로그인(cookie -> route에서 주입user객체) 시에는 그냥 넘어간다.
+            elif "Authorization" in cookies.keys():
+                pass
+
+            else:
+                raise NotAuthorized()
+```
+
+
+### 작성했던 test_service를 돌려서 오류를 파악한다.
+1. user_info를 생성해주는 faker객체의 필드를 pw -> ~~password~~ 
+    - **fastapi-users를 거치지 않고 생성되므로 `password_helper`를 이용해서 hashed된 password를 `hashed_password=` 입력으로 수정해준다.**
+    - **주입식이 아닌 메서드이므로, `기존에 만든 hash_password 유틸`을 이용해서 hash해주자.**
+    ```python
+    from app.utils.auth_utils import hash_password
+    
+    class UserProvider(BaseProvider):
+    
+        def create_user_info(self, **kwargs):
+            #...
+            return dict(
+                email=fake_profile['mail'],
+                hashed_password=hash_password("string"),
+                #...
+    ```
+
+2. 응답형태가 CustomJSONResponse로 바꼈으므로 api_key_info를 뽑아낼 때, 서비스 요청 메서드fixture 응답 수정
+    - 응답도 원래 body -> body의 ['data']를 반환.
+    ```python
+    @pytest.fixture(scope="session")
+    async def api_key_info(async_client: AsyncClient, login_headers: dict[str, str]):
+        response_body = response.json()
+        # assert "access_key" in response_body
+        # assert "secret_key" in response_body
+        assert "access_key" in response_body['data']
+        assert "secret_key" in response_body['data']
+    
+        # return response_body
+        return response_body['data']
+    ```
+    ```python
+    @pytest.fixture(scope="session")
+    async def request_service(async_client: AsyncClient, api_key_info: dict[str, str]) -> Any:
+        async def func(
+    
+            return response_body['data']
+    
+        return func
+    ```
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

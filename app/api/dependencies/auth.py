@@ -1,18 +1,14 @@
-from typing import Optional
+from fastapi import Depends
+from fastapi_users import FastAPIUsers
 
-from fastapi import Depends, Request
-from fastapi_users import IntegerIDMixin, BaseUserManager, FastAPIUsers
-from fastapi_users.authentication import BearerTransport, JWTStrategy, AuthenticationBackend, CookieTransport
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas import UserRead, UserCreate
-from app.common.config import JWT_SECRET
 from app.database.conn import db
+from app.models import Users
+from app.schemas import UserRead, UserCreate
 from app.libs.auth.backends import get_auth_backends
 from app.libs.auth.managers import UserManager
-from app.libs.auth.strategies import get_jwt_strategy
-from app.models import Users
 
 
 async def get_user_db(session: AsyncSession = Depends(db.session)):
@@ -21,6 +17,11 @@ async def get_user_db(session: AsyncSession = Depends(db.session)):
 
 async def get_user_manager(user_db=Depends(get_user_db)):
     yield UserManager(user_db)
+
+
+# router에서 쿠키 아닌(no db조회) 로그인(sns_type선택한 api 회원가입/로그인)시 hash/verify하기 위함.
+async def get_password_helper(user_manager=Depends(get_user_manager)):
+    yield user_manager.password_helper
 
 
 fastapi_users = FastAPIUsers[Users, int](
@@ -46,6 +47,7 @@ def get_register_router():
         user_schema=UserRead,
         user_create_schema=UserCreate
     )
+
 
 # bearer_transport = BearerTransport(tokenUrl="/login")
 #

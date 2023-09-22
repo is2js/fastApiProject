@@ -2,6 +2,7 @@ from faker import Faker
 from faker.providers import BaseProvider
 
 from app.models import UserStatus
+from app.utils.auth_utils import hash_password
 
 
 class UserProvider(BaseProvider):
@@ -25,7 +26,7 @@ class UserProvider(BaseProvider):
 
         return dict(
             email=fake_profile['mail'],
-            pw="string",
+            hashed_password=hash_password("string"),
             phone_number=phone_number,
             name=fake_profile['name'],
             nickname=fake_profile['username'],

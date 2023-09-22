@@ -32,30 +32,6 @@ async def index(session: AsyncSession = Depends(db.session)):
     """
     user = await Users.create(email='2@sdf.com', auto_commit=True, refresh=True)
     return user
-    # not_served_user = await create_random_user(auto_commit=True, refresh=True)
-    # print("not_served_user", not_served_user.email)
-    # return not_served_user
-    # not_served_refresh_user = await create_random_user(auto_commit=True, refresh=True)
-    # print("not_served_refresh_user", not_served_refresh_user.email)
-    # return not_served_refresh_user
-
-    served_user = await create_random_user(session=session, auto_commit=True)
-    print("served_user", served_user.email)
-    served_refresh_user = await create_random_user(session=session, auto_commit=True, refresh=True)
-    print("served_refresh_user", served_refresh_user.email)
-    # return user
-    try:
-        user1 = await Users.get(session=session, id=served_user.id)
-        # ...
-    except Exception as e:
-        raise NotFoundUserException(exception=e)
-
-    return user1
-
-    # current_time = datetime.utcnow()
-    # return Response(f"Notification API (UTC: {current_time.strftime('%Y.%m.%d %H:%M:%S')})")
-
-
 @router.get("/test")
 async def test(request: Request):
     try:

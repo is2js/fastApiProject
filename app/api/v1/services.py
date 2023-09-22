@@ -27,9 +27,10 @@ async def send_kakao(request: Request, message_request: KakaoMessageRequest):
     # TODO: 추후 임시 8시간 TOKEN(REST API 테스트 -> 토큰발급)이 아닌, REFRESH가 계속 되도록 변경
     # 헤더
     headers = {
-        'Authorization': 'Bearer' + KAKAO_SEND_ME_ACCESS_TOKEN,  # Bearer uq82-Q0yOa0ITCkpqPBvgScfTEWxm0c__oHTLu7zCj102wAAAYqMOQo-
+        'Authorization': 'Bearer ' + KAKAO_SEND_ME_ACCESS_TOKEN,  # Bearer uq82-Q0yOa0ITCkpqPBvgScfTEWxm0c__oHTLu7zCj102wAAAYqMOQo-
         'Content-Type': "application/x-www-form-urlencoded",
     }
+    print(headers)
 
     # data {'template_object': json }
     # 1) body

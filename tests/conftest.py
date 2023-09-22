@@ -4,7 +4,6 @@ from typing import AsyncGenerator, Generator, Any, Literal
 
 import httpx
 import pytest
-import pytest_asyncio
 from fastapi import FastAPI
 from httpx import AsyncClient
 from sqlalchemy import NullPool, create_engine
@@ -135,7 +134,7 @@ async def login_headers(user_info: dict[str, str]) -> dict[str, str]:
 
     new_user_data = UserToken \
         .model_validate(new_user) \
-        .model_dump(exclude={'pw', 'marketing_agree'})
+        .model_dump(exclude={'hashed_password', 'marketing_agree'})
 
     new_token = await create_access_token(data=new_user_data, expires_delta=24, )
 
@@ -159,10 +158,13 @@ async def api_key_info(async_client: AsyncClient, login_headers: dict[str, str])
     assert response.status_code == 201
 
     response_body = response.json()
-    assert "access_key" in response_body
-    assert "secret_key" in response_body
+    # assert "access_key" in response_body
+    # assert "secret_key" in response_body
+    assert "access_key" in response_body['data']
+    assert "secret_key" in response_body['data']
 
-    return response_body
+    # return response_body
+    return response_body['data']
     # {'user_memo': 'TESTING: 2023-09-20 01:09:27.206007', 'id': 1,
     # 'created_at': '2023-09-20T01:09:31',
     # 'access_key': '97a17d4c-50c3-41d5-ab7d-bd086699-ed1b-4cfc-a58a-267911c049f0',
@@ -211,6 +213,6 @@ async def request_service(async_client: AsyncClient, api_key_info: dict[str, str
 
         response_body = response.json()
 
-        return response_body
+        return response_body['data']
 
     return func

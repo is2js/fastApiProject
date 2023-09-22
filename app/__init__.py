@@ -13,6 +13,7 @@ from app.middlewares.trusted_hosts import TrustedHostMiddleware
 from app.models import Users
 from app.routers import index
 from app.schemas import UserRead, UserCreate
+from app.utils.http_utils import CustomJSONResponse
 
 
 def create_app(config: Config):
@@ -24,6 +25,7 @@ def create_app(config: Config):
         version=config.APP_VERSION,
         title=config.APP_TITLE,
         description=config.APP_DESCRIPTION,
+        default_response_class=CustomJSONResponse
     )
 
     db.init_app(app)

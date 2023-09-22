@@ -42,7 +42,8 @@ JWT_SECRET = environ.get("JWT_SECRET", "secret_key!!")
 
 ## REST API SERVICE
 # kakao - 나에게 메세지 보내기: 카카오개발자 > 도구 > REST API 테스트 > 내앱 선택 > 엑세스 토큰 발급
-KAKAO_SEND_ME_ACCESS_TOKEN = environ.get("KAKAO_ACCESS_TOKEN", None)
+KAKAO_SEND_ME_ACCESS_TOKEN = environ.get("KAKAO_SEND_ME_ACCESS_TOKEN", None)
+
 KAKAO_SEND_ME_IMAGE_URL: Optional[
     str] = "https://github.com/is3js/hospital/blob/master/images/popup/mainPopup_530x640_2.jpg?raw=true"
 KAKAO_SEND_ME_URL = "https://kapi.kakao.com/v2/api/talk/memo/default/send"

@@ -1,18 +1,22 @@
 import time
 from typing import Optional
 
+from fastapi_users.authentication import JWTStrategy
+from fastapi_users.jwt import decode_jwt
 from starlette.datastructures import Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 
-from app.common.config import config
-from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST, SERVICE_PATH_REGEX
+# from app.api.dependencies.auth import get_jwt_strategy, cookie_backend, fastapi_users
+from app.common.config import config, JWT_SECRET
+from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST, SERVICE_PATH_REGEX, API_PATH_REGEX
 from app.database.conn import db
 from app.errors.exception_handler import exception_handler
 from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized, DBException, \
     InvalidServiceQueryStringException, InvalidServiceHeaderException, NoKeyMatchException, \
     InvalidServiceTimestampException
+from app.libs.auth.strategies import get_jwt_strategy
 from app.models import ApiKeys
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
@@ -53,8 +57,16 @@ class AccessControl(BaseHTTPMiddleware):
 
             # (2) service아닌 API or 템플릿 렌더링
             #  -> token 검사 후 (request 속 headers(서비스아닌api) or cookies(템플릿렌더링)) -> UserToken을 state.user에 담아 endpoint로
-            else:
+            elif await url_pattern_check(url, API_PATH_REGEX):
+                print('api접속')
                 request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
+
+            #### 쿠기가 있어도, service(qs + headers -> user_token) /api접속(headers -> user_token)이 아닐시에만 -> 쿠키로그인(cookie -> route에서 주입user객체) 시에는 그냥 넘어간다.
+            elif "Authorization" in cookies.keys():
+                pass
+
+            else:
+                raise NotAuthorized()
 
             response = await call_next(request)
             # 응답 전 logging
@@ -104,15 +116,18 @@ class AccessControl(BaseHTTPMiddleware):
         if "authorization" in headers.keys() or "Authorization" in headers.keys():
             token = headers.get("Authorization")
         # [2] 템플릿 레더링 -> cookies에서 token정보
-        elif "Authorization" in cookies.keys() or "authorization" in cookies.keys():
-            # 템플릿 쿠키 검사1) 키가 없으면 탈락
-            cookies['Authorization'] = \
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwibmFtZSI6bnVsbCwicGhvbmVfbnVtYmVyIjpudWxsLCJwcm9maWxlX2ltZyI6bnVsbCwic25zX3R5cGUiOm51bGx9.6cnlgT4xWyKh5JTXxhd2kN1hLT4fawhnyBsV3scvDzU'
-            token = headers.get("Authorization")
+        # elif "Authorization" in cookies.keys() or "authorization" in cookies.keys():
+        # 템플릿 쿠키 검사1) 키가 없으면 탈락
+        # cookies['Authorization'] = \
+        #     'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJ1c2VyQGV4YW1wbGUuY29tIiwibmFtZSI6bnVsbCwicGhvbmVfbnVtYmVyIjpudWxsLCJwcm9maWxlX2ltZyI6bnVsbCwic25zX3R5cGUiOm51bGx9.6cnlgT4xWyKh5JTXxhd2kN1hLT4fawhnyBsV3scvDzU'
+        # token = cookies.get("Authorization")
         else:
             raise NotAuthorized()
 
+        # updated_password
         user_token_info = await decode_token(token)
+        # user_token_info = cookie_backend.get_strategy().read_token(token, fastapi_users.get_user_manager)
+        print(f"user_token_info >> {user_token_info}")
 
         return UserToken(**user_token_info)
 

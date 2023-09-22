@@ -2,6 +2,7 @@ import datetime
 import ipaddress
 import re
 
+import bcrypt
 import jwt
 
 from app.common.consts import JWT_ALGORITHM
@@ -49,3 +50,12 @@ async def check_ip_format(ip_address):
         ipaddress.ip_address(ip_address)
     except Exception as e:
         raise InvalidIpException(ip_address, exception=e)
+
+
+async def hash_password(plain_password: str):
+    hashed_password = bcrypt.hashpw(plain_password.encode('utf-8'), bcrypt.gensalt())
+    return hashed_password.decode('utf-8')
+
+
+def verify_password(hashed_password, plain_password):
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))

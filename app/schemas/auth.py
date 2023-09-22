@@ -14,9 +14,10 @@ class SnsType(str, Enum):
 class UserRequest(BaseModel):
     # pip install "pydantic[email]"
     email: EmailStr = None
-    pw: str = None
+    # pw: str = None
+    password: str = None
 
-    @field_validator("email", "pw")
+    @field_validator("email", "password")
     def check_required_fields(cls, value):
         if value is None:
             raise ValueError("필수 필드입니다.")
