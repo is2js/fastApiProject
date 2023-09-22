@@ -13,7 +13,7 @@ async def login(sns_type: SnsType, user_info: UserRegister):
     :param user_info:
     :return:
     """
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소(email, pw)가 다들어와야한다.
         if not user_info.email or not user_info.pw:
             return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))

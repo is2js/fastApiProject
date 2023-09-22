@@ -10,23 +10,24 @@ from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
 
 from app.models.base import BaseModel
-from app.models.enums import UserStatus, ApiKeyStatus
+from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender
 
 
 # class Users(BaseModel):
 class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
-    status = Column(Enum(UserStatus), default=UserStatus.active)
+    status = Column(Enum(UserStatus), default=UserStatus.ACTIVE)
     # email = Column(String(length=255), nullable=True, unique=True)
     # pw = Column(String(length=2000), nullable=True)
     name = Column(String(length=255), nullable=True)
     phone_number = Column(String(length=20), nullable=True, unique=True)
     profile_img = Column(String(length=1000), nullable=True)
-    sns_type = Column(Enum("FB", "G", "K"), nullable=True)
+    # sns_type = Column(Enum("FB", "G", "K"), nullable=True,)
+    sns_type = Column(Enum(SnsType), nullable=True,)
     marketing_agree = Column(Boolean, nullable=True, default=True)
 
     sns_token = Column(String(length=64), nullable=True, unique=True)
     nickname = Column(String(length=30), nullable=True)
-    gender = Column(Enum("male", "female"), nullable=True)
+    gender = Column(Enum(Gender), nullable=True)
     age = Column(Integer, nullable=True, default=0)
     birthday = Column(String(length=20), nullable=True)
 
@@ -43,7 +44,7 @@ class ApiKeys(BaseModel):
     access_key = Column(String(length=64), nullable=False, index=True)
     secret_key = Column(String(length=64), nullable=False)
     user_memo = Column(String(length=40), nullable=True)
-    status = Column(Enum(ApiKeyStatus), default=ApiKeyStatus.active)
+    status = Column(Enum(ApiKeyStatus), default=ApiKeyStatus.ACTIVE)
 
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user = relationship("Users", back_populates="api_keys",

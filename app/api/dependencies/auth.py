@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.conn import db
 from app.models import Users
-from app.schemas import UserRead, UserCreate
+from app.schemas import UserRead, UserCreate, UserUpdate
 from app.libs.auth.backends import get_auth_backends
 from app.libs.auth.managers import UserManager
 
@@ -43,9 +43,13 @@ def get_auth_routers():
 
 
 def get_register_router():
-    return fastapi_users.get_register_router(
+    return fastapi_users.get_register_router(user_schema=UserRead, user_create_schema=UserCreate)
+
+
+def get_users_router():
+    return fastapi_users.get_users_router(
         user_schema=UserRead,
-        user_create_schema=UserCreate
+        user_update_schema=UserUpdate
     )
 
 

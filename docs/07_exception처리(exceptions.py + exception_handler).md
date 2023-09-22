@@ -260,7 +260,7 @@ try:
 ```python
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)
 async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소(email, pw)가 다들어와야한다.
         if not user_register_info.email or not user_register_info.pw:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
@@ -289,7 +289,7 @@ async def register(sns_type: SnsType, user_register_info: UserRegister, session:
 
 @router.post("/login/{sns_type}", status_code=200, response_model=Token)
 async def login(sns_type: SnsType, user_info: UserRegister, session: Session = Depends(db.session)):
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소(email, pw)가 다 들어와야한다.
         if not user_info.email or not user_info.pw:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))

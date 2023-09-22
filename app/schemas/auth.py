@@ -1,14 +1,6 @@
-from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
-
-
-class SnsType(str, Enum):
-    email: str = "email"
-    facebook: str = "facebook"
-    google: str = "google"
-    kakao: str = "kakao"
 
 
 class UserRequest(BaseModel):

@@ -2,13 +2,25 @@ from enum import Enum
 
 
 class UserStatus(str, Enum):
-    admin = "admin"
-    active = "active"
-    deleted = "deleted"
-    blocked = "blocked"
+    ADMIN = "admin"
+    ACTIVE = "active"
+    DELETED = "deleted"
+    BLOCKED = "blocked"
+
+
+class SnsType(str, Enum):
+    EMAIL: str = "email"
+    FACEBOOK: str = "facebook"
+    GOOGLE: str = "google"
+    KAKAO: str = "kakao"
+
+
+class Gender(str, Enum):
+    MALE = "male"
+    FEMAIL = "female"
 
 
 class ApiKeyStatus(str, Enum):
-    active = "active"
-    stopped = "stopped"
-    deleted = "deleted"
+    ACTIVE = "active"
+    STOPPED = "stopped"
+    DELETED = "deleted"

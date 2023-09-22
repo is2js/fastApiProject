@@ -142,15 +142,15 @@ class Token(BaseModel):
 async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
 
     # email <class 'str'>
-    print(sns_type, type(sns_type)) # SnsType.email <enum 'SnsType'>
+    print(sns_type, type(sns_type)) # SnsType.EMAIL <enum 'SnsType'>
     ...
 ```
-4. sns_type이 SnsType.email로 들어왔다면, email or pw 중 빠진 게 없는지 먼저 검사한다
+4. sns_type이 SnsType.EMAIL 들어왔다면, email or pw 중 빠진 게 없는지 먼저 검사한다
     - 하나라도 안들어왔거나(or), sns_type이 email이 아니라면, JSONResponse로 에러를 내보내준다.
 ```python
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)
 async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소가 다들어와야한다.
         if not user_register_info.email or not user_register_info.pw:
             return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
@@ -168,7 +168,7 @@ async def exists_user_email(email: str):
 
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)
 async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소(email, pw)가 다들어와야한다.
         if not user_register_info.email or not user_register_info.pw:
             return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
@@ -228,7 +228,7 @@ class BaseModel(Base):
     
     @router.post("/register/{sns_type}", status_code=201, response_model=Token)
     async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
-        if sns_type == SnsType.email:
+        if sns_type == SnsType.EMAIL:
             # 검증1) 모든 요소(email, pw)가 다들어와야한다.
             if not user_register_info.email or not user_register_info.pw:
                 return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
@@ -249,7 +249,7 @@ class BaseModel(Base):
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)
 async def register(sns_type: SnsType, user_register_info: UserRegister, session: Session = Depends(db.session)):
   
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증...
 
         # 비밀번호 해쉬 -> 해쉬된 비밀번호 + email -> user 객체 생성

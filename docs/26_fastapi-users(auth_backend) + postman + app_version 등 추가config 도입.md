@@ -472,7 +472,7 @@ class UserRead(BaseUser[int]):
     ```python
     @router.post("/register/{sns_type}", status_code=201, response_model=Token)
     async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session)):
-        if sns_type == SnsType.email:
+        if sns_type == SnsType.EMAIL:
             #...
             if not user_request.email or not user_request.password:
             #...
@@ -486,7 +486,7 @@ class UserRead(BaseUser[int]):
     ```python
     @router.post("/login/{sns_type}", status_code=200, response_model=Token)
     async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session)):
-        if sns_type == SnsType.email:
+        if sns_type == SnsType.EMAIL:
             #....
             if not user_request.email or not user_request.password:
             token_data = UserToken.model_validate(user).model_dump(exclude={'hashed_password', 'marketing_agree'})
@@ -524,7 +524,7 @@ class UserRead(BaseUser[int]):
     @router.post("/register/{sns_type}", status_code=201, response_model=Token)
     async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session),
                        password_helper=Depends(get_password_helper)):
-        if sns_type == SnsType.email:
+        if sns_type == SnsType.EMAIL:
     
             # 비밀번호 해쉬 -> 해쉬된 비밀번호 + email -> user 객체 생성
             # hashed_password = await hash_password(user_request.password)

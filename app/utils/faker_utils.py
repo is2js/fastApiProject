@@ -1,7 +1,7 @@
 from faker import Faker
 from faker.providers import BaseProvider
 
-from app.models import UserStatus
+from app.models import UserStatus, Gender, SnsType
 from app.utils.auth_utils import hash_password
 
 
@@ -22,7 +22,10 @@ class UserProvider(BaseProvider):
         )
         phone_number = _faker.bothify(text='010-####-####')
         age = _faker.random.randint(16, 70)
+
         status = _faker.random_element(UserStatus).value
+        gender = _faker.random_element(Gender).value
+        sns_type = _faker.random_element(SnsType).value
 
         return dict(
             email=fake_profile['mail'],
@@ -33,6 +36,8 @@ class UserProvider(BaseProvider):
             birthday=fake_profile['ssn'][:6],
             age=age,
             status=status,
+            gender=gender,
+            sns_type=sns_type,
         ) | kwargs
 
 
@@ -40,5 +45,5 @@ my_faker: Faker = Faker(locale='ko_KR')
 my_faker.add_provider(UserProvider)
 
 if __name__ == '__main__':
-    print(my_faker.create_user_info(status='active'))
+    print(my_faker.create_user_info(status='ACTIVE'))
     # {'email': 'asdf', 'pw': 'string', 'phone_number': '010-3395-0942', 'name': '강건우', 'nickname': 'cunjai', 'birthday': '470210'}

@@ -6,7 +6,7 @@ from typing import Optional
 from fastapi_users.schemas import BaseUser, BaseUserCreate, BaseUserUpdate
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from app.schemas import SnsType
+from app.models import SnsType, Gender, UserStatus
 
 
 class UserMe(BaseModel):
@@ -38,21 +38,26 @@ class UserRead(BaseUser[int]):
 
 
 class UserCreate(BaseUserCreate):
-    pass
+    # model_config = ConfigDict(use_enum_values=True, )
+    sns_type: Optional[SnsType] = "email"
 
 
 class UserUpdate(BaseUserUpdate):
+    # model_config = ConfigDict(use_enum_values=True, )
     name: Optional[str] = None
     phone_number: Optional[str] = None
     profile_img: Optional[str] = None
-    sns_type: Optional[str] = None
 
     nickname: Optional[str] = None
-    gender: Optional[str] = None
     age: Optional[int] = None
     birthday: Optional[str] = None
 
     marketing_agree: Optional[bool] = None
+
+    sns_type: Optional[SnsType] = "email"
+    gender: Optional[Gender] = "male"
+    # status: Optional[UserStatus] = "active"
+
 
 
 ##############

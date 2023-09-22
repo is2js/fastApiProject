@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper
+from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper, get_users_router
 from app.database.conn import db
 from app.errors.exceptions import (
     EmailAlreadyExistsException,
@@ -9,7 +9,8 @@ from app.errors.exceptions import (
     NoUserMatchException,
 )
 from app.models import Users
-from app.schemas import SnsType, UserRequest, Token, UserToken
+from app.schemas import UserRequest, Token, UserToken
+from app.models.enums import SnsType
 from app.utils.auth_utils import create_access_token
 
 router = APIRouter()
@@ -20,10 +21,16 @@ for auth_router in get_auth_routers():
         router=auth_router['router'],
         prefix=f"/users/{auth_router['name']}",
     )
+    # /users/jwt/login + logout
 
 router.include_router(
     router=get_register_router(),
-    prefix='/users'
+    prefix='/users'  # /users/register
+)
+
+router.include_router(
+    router=get_users_router(),
+    prefix='/users'  # /users/me(get) + me(patch)  + {id}(get) + {id}(patch) + {id}(delete)
 )
 
 
@@ -37,7 +44,7 @@ async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncS
     :param session:
     :return:
     """
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소(email, pw)가 다들어와야한다.
         if not user_request.email or not user_request.password:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
@@ -79,7 +86,7 @@ async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSess
     :param user_request:
     :return:
     """
-    if sns_type == SnsType.email:
+    if sns_type == SnsType.EMAIL:
         # 검증1) 모든 요소(email, pw)가 다 들어와야한다.
         if not user_request.email or not user_request.password:
             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
@@ -96,7 +103,7 @@ async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSess
         # is_verified = bcrypt.checkpw(user_request.password.encode('utf-8'), user.password.encode('utf-8'))
         # is_verified = verify_password(user.hashed_password, user_request.password)
         is_verified, updated_hashed_password = password_helper.verify_and_update(user_request.password,
-                                                                                  user.hashed_password)
+                                                                                 user.hashed_password)
         print(f"is_verified, updated_hashed_password >> {is_verified, updated_hashed_password}")
 
         if not is_verified:
