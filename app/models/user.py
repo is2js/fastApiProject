@@ -1,10 +1,14 @@
 import random
 import string
+from typing import List
 from uuid import uuid4
 
-from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
+from fastapi_users_db_sqlalchemy import (
+    SQLAlchemyBaseUserTable,
+    SQLAlchemyBaseOAuthAccountTable,
+)
 from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped
 
 from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
@@ -22,7 +26,7 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
     phone_number = Column(String(length=20), nullable=True, unique=True)
     profile_img = Column(String(length=1000), nullable=True)
     # sns_type = Column(Enum("FB", "G", "K"), nullable=True,)
-    sns_type = Column(Enum(SnsType), nullable=True,)
+    sns_type = Column(Enum(SnsType), nullable=True, )
     marketing_agree = Column(Boolean, nullable=True, default=True)
 
     sns_token = Column(String(length=64), nullable=True, unique=True)
@@ -31,10 +35,24 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
     age = Column(Integer, nullable=True, default=0)
     birthday = Column(String(length=20), nullable=True)
 
+    oauth_accounts = relationship(
+        "OAuthAccount", lazy="joined",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
     api_keys = relationship("ApiKeys", back_populates="user",
                             cascade="all, delete-orphan",
                             lazy=True
                             )
+
+
+class OAuthAccount(BaseModel, SQLAlchemyBaseOAuthAccountTable[int]):
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("Users", back_populates="oauth_accounts",
+                        foreign_keys=[user_id],
+                        uselist=False,
+                        )
 
 
 class ApiKeys(BaseModel):

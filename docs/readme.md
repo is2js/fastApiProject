@@ -8,6 +8,7 @@
     - asyncio를 적용한 비동기 어플리케이션 개발
 - 구현 목표
     - fastAPI, DB 등을 모두 Dockerizing 한다.
+    - Oauth 인증을 적용한다
     - Test 코드를 작성하고 CI를 활용한다.
     - Raw query대신 sqlalchemy 2.0의 mixin 등을 구현해서 활용한다.
 
@@ -27,7 +28,10 @@
     - 미들웨어 `Exceptions handling 세분화`
     - `Logger 설정 세분화`(api log <-> db log 구분하여 미들웨어에서 logging)
     - config.py / conn.py 싱글톤 적용
-    - test를 위해 faker패키지를 통한 Provider 정의
+    - test를 위해 faker패키지를 통한 Provider 활용
+    - `fastapi-users` 패키지를 도입하여 `기존 User모델과 통합` 및 Oauth 소셜 로그인 적용
+        - google 로그인 / kakao 로그인
+
 
 - Todo
     - ~~request_service_sample.py를 test코드로 변경~~ -> 완료

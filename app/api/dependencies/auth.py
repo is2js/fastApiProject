@@ -4,15 +4,18 @@ from fastapi_users import FastAPIUsers
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.config import JWT_SECRET, config
 from app.database.conn import db
-from app.models import Users
+from app.libs.auth.oauth_clients import google_oauth_client, get_oauth_clients
+from app.models import Users, OAuthAccount
 from app.schemas import UserRead, UserCreate, UserUpdate
-from app.libs.auth.backends import get_auth_backends
+from app.libs.auth.backends import get_auth_backends, cookie_auth_backend
 from app.libs.auth.managers import UserManager
 
 
 async def get_user_db(session: AsyncSession = Depends(db.session)):
-    yield SQLAlchemyUserDatabase(session=session, user_table=Users)
+    # yield SQLAlchemyUserDatabase(session=session, user_table=Users)
+    yield SQLAlchemyUserDatabase(session=session, user_table=Users, oauth_account_table=OAuthAccount)
 
 
 async def get_user_manager(user_db=Depends(get_user_db)):
@@ -53,14 +56,42 @@ def get_users_router():
     )
 
 
-# bearer_transport = BearerTransport(tokenUrl="/login")
-#
-# auth_backend = AuthenticationBackend(
-#     name="jwt",
-#     transport=bearer_transport,
-#     get_strategy=get_jwt_strategy,
-# )
-#
+def get_oauth_router():
+    router = fastapi_users.get_oauth_router(
+        oauth_client=google_oauth_client,
+        backend=cookie_auth_backend,
+        state_secret=JWT_SECRET,
+        associate_by_email=True,
+        # redirect_url=None,  # 자동으로 /callback router로 redirect 됨.
+        # redirect_url=config.FRONTEND_URL + '', # 만약, front를 거쳐가는 경우, 직접 입력해야함.
+    )
+    return router
+
+
+def get_cookie_oauth_routers():
+    routers = []
+
+    for oauth_client in get_oauth_clients():
+        routers.append({
+            "name": f'{oauth_client.name}/' + cookie_auth_backend.name ,
+            "router": fastapi_users.get_oauth_router(
+                oauth_client=oauth_client,
+                backend=cookie_auth_backend,
+                state_secret=JWT_SECRET,
+                associate_by_email=True,
+            )
+        })
+
+    return routers
+
+
+def get_bearer_oauth_routers():
+    routers = []
+
+    for oauth_client in get_oauth_clients():
+        ...
+
+    return routers
 
 
 active_user = fastapi_users.current_user(active=True)

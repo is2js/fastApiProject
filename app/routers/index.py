@@ -1,4 +1,3 @@
-import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
@@ -7,7 +6,6 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.database.conn import db
-from app.errors.exceptions import NotFoundUserException
 from app.models import Users
 from app.schemas import UserMe
 

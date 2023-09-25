@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
+from app.api.dependencies.auth import get_users_router
 from app.database.conn import db
 from app.errors.exceptions import NoKeyMatchException, NoWhiteListMatchException
 from app.models import Users, ApiKeys, ApiWhiteLists
@@ -14,17 +15,22 @@ from app.utils.auth_utils import check_ip_format
 # /api/v1/users + @
 router = APIRouter()
 
+# fastapi-users
+router.include_router(
+    router=get_users_router(),
+    # prefix=''  # /me(get) + me(patch)  + {id}(get) + {id}(patch) + {id}(delete)
+)
 
-@router.get('/me', response_model=UserMe)
-async def get_user(request: Request, session: AsyncSession = Depends(db.session)):
-    """
-    get my info
-    :param request:
-    :return:
-    """
-    user_token = request.state.user
-    user = await Users.get(session=session, id=user_token.id)
-    return user
+# @router.get('/me', response_model=UserMe)
+# async def get_user(request: Request, session: AsyncSession = Depends(db.session)):
+#     """
+#     get my info
+#     :param request:
+#     :return:
+#     """
+#     user_token = request.state.user
+#     user = await Users.get(session=session, id=user_token.id)
+#     return user
 
 
 @router.post('/apikeys', status_code=201, response_model=ApiKeyFirstTimeResponse)

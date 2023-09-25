@@ -36,7 +36,6 @@ DB_URL_FORMAT: str = "{dialect}+{driver}://{user}:{password}@{host}:{port}/{data
 
 # prod
 HOST_MAIN: str = environ.get("HOST_MAIN", "localhost")
-
 # auth
 JWT_SECRET = environ.get("JWT_SECRET", "secret_key!!")
 
@@ -57,6 +56,10 @@ ADMIN_GMAIL_NICKNAME = os.getenv('ADMIN_GMAIL_NICKNAME', None)
 AWS_ACCESS_KEY: str = environ.get("AWS_ACCESS_KEY", None)
 AWS_SECRET_KEY: str = environ.get("AWS_SECRET_KEY", None)
 AWS_SES_AUTHORIZED_EMAIL: str = environ.get("AWS_SES_AUTHORIZED_EMAIL", None)
+
+# oauth
+GOOGLE_CLIENT_ID: str = environ.get("GOOGLE_CLIENT_ID", None)
+GOOGLE_CLIENT_SECRET: str = environ.get("GOOGLE_CLIENT_SECRET", None)
 
 
 @dataclass
@@ -98,19 +101,20 @@ class Config(metaclass=SingletonMetaClass):
 
     # prod or aws-ses
     HOST_MAIN: str = HOST_MAIN
+    FRONTEND_URL: str = f'https://{HOST_MAIN}'
 
     def __post_init__(self):
         # main.py(not DOCKER_MODE ) or local pytest(self.TEST_MODE) 실행
         if not DOCKER_MODE or self.TEST_MODE:
             self.PORT = 8001  # main.py 전용 / docker(8000) 도는 것 대비 8001
 
-            self.MYSQL_HOST = "localhost"  # main.py시 mysql port는 환경변수로
+            self.MYSQL_HOST: str = "localhost"  # main.py시 mysql port는 환경변수로
             # self.MYSQL_USER = 'root'
             # self.MYSQL_PASSWORD = parse.quote(self.MYSQL_ROOT_PASSWORD)
 
         # not main.py  실행 -> docker or pytest
         else:
-            self.MYSQL_PORT = 3306  # docker 전용 / 3306 고정
+            self.MYSQL_PORT: int = 3306  # docker 전용 / 3306 고정
 
         self.DB_URL: str = DB_URL_FORMAT.format(
             dialect="mysql",
@@ -121,6 +125,10 @@ class Config(metaclass=SingletonMetaClass):
             port=self.MYSQL_PORT,
             database=self.MYSQL_DATABASE,
         )
+
+        # redirect시 필요한 프론트 URL 동적으로 만들기
+        self.FRONTEND_URL: str = f'http://localhost:{self.PORT}/authenticated-route' if API_ENV != 'prod' \
+            else f'https://{HOST_MAIN}'
 
     @staticmethod
     def get(option: Optional[str] = None) -> Union["LocalConfig", "ProdConfig", "TestConfig"]:
@@ -187,4 +195,3 @@ class TestConfig(Config):
 
 config = Config.get()
 print(config)
-

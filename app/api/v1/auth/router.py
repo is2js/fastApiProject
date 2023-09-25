@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper, get_users_router
+from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper, get_users_router, \
+    get_oauth_router, get_cookie_oauth_routers
 from app.database.conn import db
 from app.errors.exceptions import (
     EmailAlreadyExistsException,
@@ -16,22 +17,33 @@ from app.utils.auth_utils import create_access_token
 router = APIRouter()
 
 # fastapi-users
-for auth_router in get_auth_routers():
+for oauth_router in get_auth_routers():
     router.include_router(
-        router=auth_router['router'],
-        prefix=f"/users/{auth_router['name']}",
+        router=oauth_router['router'],
+        # prefix=f"/users/{oauth_router['name']}",
+        prefix=f"/{oauth_router['name']}",
     )
-    # /users/jwt/login + logout
+    # /cookie/login + logout
 
 router.include_router(
     router=get_register_router(),
-    prefix='/users'  # /users/register
-)
+    # prefix='/users'
+) # /register
 
-router.include_router(
-    router=get_users_router(),
-    prefix='/users'  # /users/me(get) + me(patch)  + {id}(get) + {id}(patch) + {id}(delete)
-)
+# router.include_router(
+#     router=get_oauth_router(),
+#     prefix='/users/jwt/google'
+# )
+
+for oauth_router in get_cookie_oauth_routers():
+    router.include_router(
+        router=oauth_router['router'],
+        # prefix=f"/users/{oauth_router['name']}",
+        prefix=f"/{oauth_router['name']}",
+    )
+    # /api/v1/auth/cookie/authorize
+    # /api/v1/auth/cookie/callback
+
 
 
 @router.post("/register/{sns_type}", status_code=201, response_model=Token)

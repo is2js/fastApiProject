@@ -17,7 +17,7 @@
         prefix='/users'  # /users/me(get) + me(patch)  + {id}(get) + {id}(patch) + {id}(delete)
     )
     ```
-    ![img.png](img.png)
+    ![img.png](../images/45.png)
 
 #### enum 정리 및 user model enum필드 수정
 1. **enum의 value는 `외부입력이 편하도록 소문자`로 수정한다.**
