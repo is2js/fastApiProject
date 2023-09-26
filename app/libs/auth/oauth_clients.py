@@ -13,9 +13,12 @@ google_oauth_client = GoogleOAuth2(
     GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET,
     scopes=[
-        "https://www.googleapis.com/auth/userinfo.profile",  # 구글 클라우드에서 설정한 scope
+        "openid",
+        "https://www.googleapis.com/auth/userinfo.profile",  # 구글 클라우드 - 동의에서 설정한 범위
         "https://www.googleapis.com/auth/userinfo.email",
-        "openid"
+        "https://www.googleapis.com/auth/user.birthday.read",  # 추가 액세스 요청 3개 (전부 people api)
+        "https://www.googleapis.com/auth/user.gender.read",
+        "https://www.googleapis.com/auth/user.phonenumbers.read",
     ])
 
 

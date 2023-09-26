@@ -29,8 +29,33 @@
     - `Logger 설정 세분화`(api log <-> db log 구분하여 미들웨어에서 logging)
     - config.py / conn.py 싱글톤 적용
     - test를 위해 faker패키지를 통한 Provider 활용
-    - `fastapi-users` 패키지를 도입하여 `기존 User모델과 통합` 및 Oauth 소셜 로그인 적용
-        - google 로그인 / kakao 로그인
+    - `fastapi-users` 패키지를 도입하여 `기존 User모델과 통합` 및 Oauth 소셜 로그인시 `CustomBackend` 구현으로 추가정보 추출하여 Users모델에 입력
+        1. google 로그인 -> people API 중 personFields=`photos,birthdays,genders,phoneNumbers` 추가 입력
+            - 구글클라우드 프로젝트에서 OAuth 동의화면 scope(기본 .../auth/userinfo.email, .../auth/userinfo.profile)에 scope 추가
+                - `.../auth/user.birthday.read`, `.../auth/user.gender.read`, `.../auth/user.phonenumbers.read`
+            ```python
+            # 1. client scope 추가(profile, email 외)
+            google_oauth_client = GoogleOAuth2(
+                GOOGLE_CLIENT_ID,
+                GOOGLE_CLIENT_SECRET,
+                scopes=[
+                    "openid",
+                    "https://www.googleapis.com/auth/userinfo.profile",  # 구글 클라우드 - 동의에서 설정한 범위
+                    "https://www.googleapis.com/auth/userinfo.email",
+                    "https://www.googleapis.com/auth/user.birthday.read",  # 추가 액세스 요청 3개 (전부 people api)
+                    "https://www.googleapis.com/auth/user.gender.read",
+                    "https://www.googleapis.com/auth/user.phonenumbers.read",
+                ])
+            
+            # 2. backend 객체 생성시, has_profile_callback=True 입력
+            google_cookie_backend = GoogleBackend(
+                name="cookie",
+                transport=get_cookie_transport(),
+                get_strategy=get_jwt_strategy,
+                has_profile_callback=True, # 추가 프로필 요청 여부
+            )
+            ```
+        2. kakao 로그인
 
 
 - Todo
@@ -66,10 +91,11 @@
 
 ## mixin 사용법
 
-1. mixin내부에서 외부 주입 session이 없더라도, 자체적으로 CRUD하기 위한 session 발급을 위해, `Base.scoped_session` 변수에, db connection시 생성된 async_scoped_session객체를 주입한다.
+1. mixin내부에서 외부 주입 session이 없더라도, 자체적으로 CRUD하기 위한 session 발급을 위해, `Base.scoped_session` 변수에, db connection시 생성된
+   async_scoped_session객체를 주입한다.
     ```python
     class SQLAlchemy(metaclass=SingletonMetaClass):
-        #...
+        # ...
         self._scoped_session: async_scoped_session[AsyncSession] | None = \
             async_scoped_session(
                 async_sessionmaker(
@@ -86,7 +112,7 @@
     Base.scoped_session = db.scoped_session
 
     ```
-   
+
 2. Base를 상속한 BaseModel을 정의한 뒤, 필요한 Mixin을 추가 상속해서 쓴다.
     ```python
     class BaseModel(CRUDMixin, ReprMixin):
@@ -102,7 +128,7 @@
         updated_at = Column(DateTime, nullable=False, default=func.utc_timestamp(), onupdate=func.utc_timestamp())
     
     ```
-   
+
 3. 해당 sessino generator는 외부 session 주입이 없을 때, 자체 session을 발급할 때 쓰인다.
     ```python
     class ObjectMixin(BaseMixin):

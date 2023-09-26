@@ -467,6 +467,9 @@ for oauth_router in get_cookie_oauth_routers():
     ```
    
     ![img.png](../images/51.png)
+#### callback router의 url이 바뀌면, 구글 클라우드 앱에서도 변경해줘야한다.
+![img.png](../images/52.png)
+
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`

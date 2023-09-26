@@ -2,14 +2,16 @@ from fastapi import Depends
 from fastapi_users import FastAPIUsers
 
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from httpx_oauth.clients.google import GoogleOAuth2
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.common.config import JWT_SECRET, config
+from app.common.config import JWT_SECRET
 from app.database.conn import db
+from app.libs.auth.backends.oauth import get_google_backends
 from app.libs.auth.oauth_clients import google_oauth_client, get_oauth_clients
 from app.models import Users, OAuthAccount
 from app.schemas import UserRead, UserCreate, UserUpdate
-from app.libs.auth.backends import get_auth_backends, cookie_auth_backend
+from app.libs.auth.backends.base import cookie_auth_backend, get_auth_backends
 from app.libs.auth.managers import UserManager
 
 
@@ -56,31 +58,35 @@ def get_users_router():
     )
 
 
-def get_oauth_router():
-    router = fastapi_users.get_oauth_router(
-        oauth_client=google_oauth_client,
-        backend=cookie_auth_backend,
-        state_secret=JWT_SECRET,
-        associate_by_email=True,
-        # redirect_url=None,  # 자동으로 /callback router로 redirect 됨.
-        # redirect_url=config.FRONTEND_URL + '', # 만약, front를 거쳐가는 경우, 직접 입력해야함.
-    )
-    return router
+# def get_oauth_router():
+#     router = fastapi_users.get_oauth_router(
+#         oauth_client=google_oauth_client,
+#         backend=cookie_auth_backend,
+#         state_secret=JWT_SECRET,
+#         associate_by_email=True,
+#         # redirect_url=None,  # 자동으로 /callback router로 redirect 됨.
+#         # redirect_url=config.FRONTEND_URL + '', # 만약, front를 거쳐가는 경우, 직접 입력해야함.
+#     )
+#     return router
 
 
-def get_cookie_oauth_routers():
+def get_oauth_routers():
     routers = []
 
     for oauth_client in get_oauth_clients():
-        routers.append({
-            "name": f'{oauth_client.name}/' + cookie_auth_backend.name ,
-            "router": fastapi_users.get_oauth_router(
-                oauth_client=oauth_client,
-                backend=cookie_auth_backend,
-                state_secret=JWT_SECRET,
-                associate_by_email=True,
-            )
-        })
+        if isinstance(oauth_client, GoogleOAuth2):
+            for backend in get_google_backends():
+                # oauth_client.name -> 'google' or ... (cusotm)
+                # backend.name -> 'cookie' or 'bearer' (backend객체 생성시 약속)
+                routers.append({
+                    "name": f'{oauth_client.name}/' + backend.name,
+                    "router": fastapi_users.get_oauth_router(
+                        oauth_client=oauth_client,
+                        backend=backend,
+                        state_secret=JWT_SECRET,
+                        associate_by_email=True,
+                    )
+                })
 
     return routers
 

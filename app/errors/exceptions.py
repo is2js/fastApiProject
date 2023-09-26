@@ -246,6 +246,15 @@ class NoWhiteListMatchException(NotFoundException):
         )
 
 
+class GetOAuthProfileError(NotFoundException):
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=5,
+            detail="소셜로그인 추가정보를 요청하는데 실패하였습니다.",
+            exception=exception
+        )
+
+
 # 500
 # 500 - db
 class DBException(APIException):
@@ -283,5 +292,25 @@ class RemoveFailException(DBException):
         super().__init__(
             code_number=2,
             detail=f"{obj}의 데이터를 삭제하는데 실패했습니다.",
+            exception=exception
+        )
+
+
+class RemoveFailException(DBException):
+
+    def __init__(self, *, obj=None, exception: Exception = None):
+        super().__init__(
+            code_number=2,
+            detail=f"{obj}의 데이터를 삭제하는데 실패했습니다.",
+            exception=exception
+        )
+
+
+class OAuthProfileUpdateFailException(DBException):
+
+    def __init__(self, *, obj=None, exception: Exception = None):
+        super().__init__(
+            code_number=3,
+            detail=f"{obj}의 소셜로그인 프로필 업데이트에 실패했습니다.",
             exception=exception
         )
