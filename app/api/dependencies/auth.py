@@ -3,11 +3,12 @@ from fastapi_users import FastAPIUsers
 
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from httpx_oauth.clients.google import GoogleOAuth2
+from httpx_oauth.clients.kakao import KakaoOAuth2
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import JWT_SECRET
 from app.database.conn import db
-from app.libs.auth.backends.oauth import get_google_backends
+from app.libs.auth.backends.oauth import get_google_backends, get_kakao_backends
 from app.libs.auth.oauth_clients import google_oauth_client, get_oauth_clients
 from app.models import Users, OAuthAccount
 from app.schemas import UserRead, UserCreate, UserUpdate
@@ -31,7 +32,7 @@ async def get_password_helper(user_manager=Depends(get_user_manager)):
 
 fastapi_users = FastAPIUsers[Users, int](
     get_user_manager,
-    get_auth_backends(),
+    get_auth_backends(), # oauth가 아닌 단순 /login, /logout  + /regitser router 생성용
 )
 
 
@@ -88,14 +89,17 @@ def get_oauth_routers():
                     )
                 })
 
-    return routers
-
-
-def get_bearer_oauth_routers():
-    routers = []
-
-    for oauth_client in get_oauth_clients():
-        ...
+        elif isinstance(oauth_client, KakaoOAuth2):
+            for backend in get_kakao_backends():
+                routers.append({
+                    "name": f'{oauth_client.name}/' + backend.name,
+                    "router": fastapi_users.get_oauth_router(
+                        oauth_client=oauth_client,
+                        backend=backend,
+                        state_secret=JWT_SECRET,
+                        associate_by_email=True,
+                    )
+                })
 
     return routers
 

@@ -32,8 +32,23 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
     sns_token = Column(String(length=64), nullable=True, unique=True)
     nickname = Column(String(length=30), nullable=True)
     gender = Column(Enum(Gender), nullable=True)
-    age = Column(Integer, nullable=True, default=0)
-    birthday = Column(String(length=20), nullable=True)
+
+    # age = Column(Integer, nullable=True, default=0)
+    # birthday = Column(String(length=20), nullable=True)
+    # kakao age_range(연령대)
+    # 1~9: 1세 이상 10세 미만
+    # 10~14: 10세 이상 15세 미만
+    # 15~19: 15세 이상 20세 미만
+    # 20~29: 20세 이상 30세 미만
+    # 80~89: 80세 이상 90세 미만
+    # 90~: 90세 이상
+    age_range = Column(String(length=5), nullable=True) # 카카오 형식인데, 구글 등에서 변환하길.
+    birthyear = Column(String(length=4), nullable=True) # kakao는 '출생연도'가 비즈니스 아니면 동의화면 권한없음. 구글에서는 'year'로 바로 들어옴
+    birthday = Column(String(length=4), nullable=True) # 1218. 구글에서는 'month', 'day'를 합해서 넣기
+
+    # last_seen = Column(DateTime, server_default=func.now(), nullable=True)
+    # => db서버의 시간대(KST)로 들어가버림.
+    last_seen = Column(DateTime, default=func.utc_timestamp(), nullable=True)
 
     oauth_accounts = relationship(
         "OAuthAccount", lazy="joined",

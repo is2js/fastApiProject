@@ -7,9 +7,11 @@ class UserRequest(BaseModel):
     # pip install "pydantic[email]"
     email: EmailStr = None
     # pw: str = None
-    password: str = None
+    # password: str = None
+    password: Optional[str] = None
 
-    @field_validator("email", "password")
+    # @field_validator("email", "password")
+    @field_validator("email")
     def check_required_fields(cls, value):
         if value is None:
             raise ValueError("필수 필드입니다.")

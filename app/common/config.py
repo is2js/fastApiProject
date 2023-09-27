@@ -60,6 +60,8 @@ AWS_SES_AUTHORIZED_EMAIL: str = environ.get("AWS_SES_AUTHORIZED_EMAIL", None)
 # oauth
 GOOGLE_CLIENT_ID: str = environ.get("GOOGLE_CLIENT_ID", None)
 GOOGLE_CLIENT_SECRET: str = environ.get("GOOGLE_CLIENT_SECRET", None)
+KAKAO_CLIENT_ID: str = environ.get("KAKAO_CLIENT_ID", None)
+KAKAO_CLIENT_SECRET: str = environ.get("KAKAO_CLIENT_SECRET", None)
 
 
 @dataclass

@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
+from starlette.responses import Response, RedirectResponse
 
 from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper, get_oauth_routers
 from app.database.conn import db
@@ -12,6 +14,7 @@ from app.models import Users
 from app.schemas import UserRequest, Token, UserToken
 from app.models.enums import SnsType
 from app.utils.auth_utils import create_access_token
+from app.utils.date_utils import D
 
 router = APIRouter()
 
@@ -120,7 +123,10 @@ async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSess
             raise NoUserMatchException()
 
         if updated_hashed_password:
-            await user.update(session=session, auto_commit=True, hashed_password=updated_hashed_password)
+            # await user.update(session=session, auto_commit=True, hashed_password=updated_hashed_password)
+            await user.update(session=session, hashed_password=updated_hashed_password)
+
+        await user.update(session=session, auto_commit=True, last_seen=D.datetime())
 
         # 비번인증된 user객체 -> UserToken(dict) -> create_access_token -> Token모델용 token dict return
         token_data = UserToken.model_validate(user).model_dump(exclude={'hashed_password', 'marketing_agree'})
@@ -128,6 +134,11 @@ async def login(sns_type: SnsType, user_request: UserRequest, session: AsyncSess
             Authorization=f"Bearer {await create_access_token(data=token_data)}"
         )
         return token
+
+
+    elif sns_type in SnsType:
+        return Response(status_code=status.HTTP_302_FOUND, headers={"Location": f'/api/v1/auth/{sns_type}/bearer/authorize'})
+
 
     # return JSONResponse(status_code=400, content=dict(msg="NOT_SUPPORTED"))
     raise NoSupportException()

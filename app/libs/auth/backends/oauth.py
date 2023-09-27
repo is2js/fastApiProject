@@ -1,4 +1,6 @@
+import json
 from abc import abstractmethod
+from datetime import date
 from typing import AsyncContextManager, cast, Any, Dict
 
 import httpx
@@ -6,6 +8,7 @@ from fastapi_users import models
 from fastapi_users.authentication import AuthenticationBackend, Strategy, Transport
 from fastapi_users.types import DependencyCallable
 from httpx_oauth.clients import google, kakao
+from httpx_oauth.clients.kakao import PROFILE_ENDPOINT
 from starlette.responses import Response
 
 from app.models import Users
@@ -47,13 +50,14 @@ class OAuthBackend(AuthenticationBackend):
                 # 추가정보가 들어올 때만, user.update()
                 if profile_info := await self.get_profile_info(access_token):
                     # 자체 session으로 업데이트
-                    await user.update(auto_commit=True, **profile_info)
+                    # await user.update(auto_commit=True, **profile_info)
+                    await user.update(auto_commit=True, **profile_info, sns_type=self.get_oauth_name())
             except Exception as e:
                 raise OAuthProfileUpdateFailException(obj=user, exception=e)
 
         return strategy_response
 
-    def get_profile_info(self, access_token):
+    async def get_profile_info(self, access_token):
         return dict()
 
     def get_access_token(self, user: Users):
@@ -62,6 +66,44 @@ class OAuthBackend(AuthenticationBackend):
                 return oauth_account.access_token
 
         return None
+
+    def calculate_age_range(self, year: [str, int], month: [str, int], day: [str, int]):
+        if isinstance(year, str):
+            year = int(year)
+        if isinstance(month, str):
+            month = int(month)
+        if isinstance(day, str):
+            day = int(day)
+
+        # 1. age 계산 (month, day)를 tuple비교로, 지났으면 0(False), 안지났으면 -1(True) 빼준다.
+        today = date.today()
+        age = today.year - year - ((today.month, today.day) < (month, day))
+        print(age)
+        # 2. age로 kakao양식의 age_range 반환해주기
+        if 1 <= age < 10:
+            age_range = "1~9"
+        elif 10 <= age < 15:
+            age_range = "10~14"
+        elif 15 <= age < 20:
+            age_range = "15~19"
+        elif 20 <= age < 30:
+            age_range = "20~29"
+        elif 30 <= age < 40:
+            age_range = "30~39"
+        elif 40 <= age < 50:
+            age_range = "40~49"
+        elif 50 <= age < 60:
+            age_range = "50~59"
+        elif 60 <= age < 70:
+            age_range = "60~69"
+        elif 70 <= age < 80:
+            age_range = "70~79"
+        elif 80 <= age < 90:
+            age_range = "80~89"
+        else:
+            age_range = "90~"
+
+        return age_range
 
     @abstractmethod
     def get_oauth_name(self):
@@ -112,15 +154,18 @@ class GoogleBackend(OAuthBackend):
                     #              "month": 00,
                     #              "day": 00
                     #          }
-                    profile_info['birthday'] = str(birthday_info['year']) + str(birthday_info['month']) + str(
-                        str(birthday_info['day']))
+                    # profile_info['birthday'] = str(birthday_info['year']) + str(birthday_info['month']) + str(
+                    #     str(birthday_info['day']))
+                    profile_info['birthyear'] = str(birthday_info['year'])
+                    profile_info['birthday'] = str(birthday_info['month']) + str(birthday_info['day'])
+                    profile_info['age_range'] = self.calculate_age_range(birthday_info['year'], birthday_info['month'], birthday_info['day'])
 
                 if field == 'genders':
                     # "value": "male",
                     profile_info['gender'] = primary_data['value']
 
                 if field == 'phoneNumbers':
-                    # "value": "010-4600-6243",
+                    # "value": "010-yyyy-xxxx",
                     profile_info['phone_number'] = primary_data['value']
 
             return profile_info
@@ -144,4 +189,100 @@ google_bearer_backend = GoogleBackend(
 def get_google_backends():
     return [
         google_cookie_backend, google_bearer_backend
+    ]
+
+
+class KakaoBackend(OAuthBackend):
+    OAUTH_NAME = 'kakao'
+
+    def get_oauth_name(self):
+        return self.OAUTH_NAME
+
+    async def get_profile_info(self, access_token):
+        async with self.get_httpx_client() as client:
+            # https://developers.kakao.com/docs/latest/ko/kakaologin/rest-api#propertykeys
+            PROFILE_ADDITIONAL_PROPERTIES = [
+                "kakao_account.profile",
+                "kakao_account.age_range",
+                "kakao_account.birthday",
+                "kakao_account.gender"
+            ]
+
+            response = await client.post(
+                PROFILE_ENDPOINT,
+                params={"property_keys": json.dumps(PROFILE_ADDITIONAL_PROPERTIES)},
+                headers={**self.request_headers, "Authorization": f"Bearer {access_token}"},
+            )
+
+            if response.status_code >= 400:
+                raise GetOAuthProfileError()
+
+            data = cast(Dict[str, Any], response.json())
+            # print(data)
+            # {
+            #     "id":xxx,
+            #     "connected_at":"2023-09-26T11:46:32Z",
+            #     "kakao_account":{
+            #         "profile_nickname_needs_agreement":false,
+            #         "profile_image_needs_agreement":false,
+            #         "profile":{
+            #             "nickname":"조재성",
+            #             "thumbnail_image_url":"http://k.kakaocdn.net/dn/bLu5OM/btsqh2LkkN0/KR5dVHiRVIFfTC0uZCtWTk/img_110x110.jpg",
+            #             "profile_image_url":"http://k.kakaocdn.net/dn/bLu5OM/btsqh2LkkN0/KR5dVHiRVIFfTC0uZCtWTk/img_640x640.jpg",
+            #             "is_default_image":false
+            #         },
+            #         "has_age_range":true,
+            #         "age_range_needs_agreement":false,
+            #         "age_range":"30~39",
+            #         "has_birthday":true,
+            #         "birthday_needs_agreement":false,
+            #         "birthday":"1218",
+            #         "birthday_type":"SOLAR",
+            #         "has_gender":true,
+            #         "gender_needs_agreement":false,
+            #         "gender":"male"
+            #     }
+            # }
+
+            # 동의 안했을 수도 있으니, 키값을 확인해서 꺼내서 db에 맞게 넣는다.
+            profile_info = dict()
+
+            kakao_account = data['kakao_account']
+
+            if kakao_account.get('profile'):
+                profile_info['profile_img'] = kakao_account['profile'].get('thumbnail_image_url', None)
+            if kakao_account.get('birthday'):
+                profile_info['birthday'] = kakao_account['birthday']
+            if kakao_account.get('has_age_range'):
+                # profile_info['birthday'] = kakao_account['age_range'] + profile_info['birthday']
+                profile_info['age_range'] = kakao_account['age_range']
+            if kakao_account.get('gender'):
+                profile_info['gender'] = kakao_account['gender']
+
+        # profile_info >> {
+        # 'profile_img': 'http://k.kakaocdn.net/dn/bLu5OM/btsqh2LkkN0/KR5dVHiRVIFfTC0uZCtWTk/img_110x110.jpg',
+        # 'birthday': '1218', 'age_range': '30~39', 'gender': 'male'
+        # }
+
+        return profile_info
+
+
+kakao_cookie_backend = KakaoBackend(
+    name="cookie",
+    transport=get_cookie_transport(),
+    get_strategy=get_jwt_strategy,
+    has_profile_callback=True,
+)
+
+kakao_bearer_backend = KakaoBackend(
+    name="bearer",
+    transport=get_bearer_transport(),
+    get_strategy=get_jwt_strategy,
+    has_profile_callback=True,
+)
+
+
+def get_kakao_backends():
+    return [
+        kakao_cookie_backend, kakao_bearer_backend
     ]
