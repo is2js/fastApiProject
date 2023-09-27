@@ -1,8 +1,11 @@
+from httpx_oauth.clients import kakao, discord
 from httpx_oauth.clients.google import GoogleOAuth2
-from httpx_oauth.clients.kakao import KakaoOAuth2, BASE_SCOPES
+from httpx_oauth.clients.kakao import KakaoOAuth2
+from httpx_oauth.clients.discord import DiscordOAuth2
 
 from app.common.config import (
-    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, KAKAO_CLIENT_ID, KAKAO_CLIENT_SECRET
+    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, KAKAO_CLIENT_ID, KAKAO_CLIENT_SECRET, DISCORD_CLIENT_ID,
+    DISCORD_CLIENT_SECRET
 )
 
 # BASE_SCOPES = [
@@ -26,13 +29,20 @@ google_oauth_client = GoogleOAuth2(
 # - BASE_SCOPE ["profile_nickname", "account_email"]
 # - profile_image, gender, age_range, birthday
 kakao_oauth_client = KakaoOAuth2(
-    client_id=KAKAO_CLIENT_ID,
-    client_secret=KAKAO_CLIENT_SECRET,
-    scopes=BASE_SCOPES + ['profile_image', 'gender', 'age_range', 'birthday']
+    client_id=KAKAO_CLIENT_ID,  # 앱 - RESPT API 키
+    client_secret=KAKAO_CLIENT_SECRET,  # 앱 > 보안 > CLIENT_SECRET
+    scopes=kakao.BASE_SCOPES + ['profile_image', 'gender', 'age_range', 'birthday']
+)
+
+# - BASE_SCOPE ["identify", "email"]
+discord_oauth_client = DiscordOAuth2(
+    client_id=DISCORD_CLIENT_ID,
+    client_secret=DISCORD_CLIENT_SECRET,
+    scopes=discord.BASE_SCOPES + ['bot']
 )
 
 
 def get_oauth_clients():
     return [
-        google_oauth_client, kakao_oauth_client
+        google_oauth_client, kakao_oauth_client, discord_oauth_client
     ]

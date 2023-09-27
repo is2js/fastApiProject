@@ -7,8 +7,7 @@ import httpx
 from fastapi_users import models
 from fastapi_users.authentication import AuthenticationBackend, Strategy, Transport
 from fastapi_users.types import DependencyCallable
-from httpx_oauth.clients import google, kakao
-from httpx_oauth.clients.kakao import PROFILE_ENDPOINT
+from httpx_oauth.clients import google, kakao, discord
 from starlette.responses import Response
 
 from app.models import Users
@@ -18,6 +17,7 @@ from app.libs.auth.transports import get_cookie_transport, get_bearer_transport
 
 
 class OAuthBackend(AuthenticationBackend):
+    OAUTH_NAME = ""
 
     def __init__(
             self,
@@ -44,6 +44,10 @@ class OAuthBackend(AuthenticationBackend):
     async def login(self, strategy: Strategy[models.UP, models.ID], user: Users) -> Response:
         strategy_response = await super().login(strategy, user)
 
+        print("login")
+        print(f"self.has_profile_callback >> {self.has_profile_callback}")
+        print(f"self.get_access_token(user) >> {self.get_access_token(user)}")
+
         # 프로필 정보 추가 요청
         if self.has_profile_callback and (access_token := self.get_access_token(user)):
             try:
@@ -62,6 +66,9 @@ class OAuthBackend(AuthenticationBackend):
 
     def get_access_token(self, user: Users):
         for oauth_account in user.oauth_accounts:
+            print(f"oauth_account.oauth_name >> {oauth_account.oauth_name}")
+            print(f"self.get_oauth_name() >> {self.get_oauth_name()}")
+
             if oauth_account.oauth_name == self.get_oauth_name():
                 return oauth_account.access_token
 
@@ -105,16 +112,12 @@ class OAuthBackend(AuthenticationBackend):
 
         return age_range
 
-    @abstractmethod
     def get_oauth_name(self):
-        raise NotImplementedError
+        return self.OAUTH_NAME
 
 
 class GoogleBackend(OAuthBackend):
     OAUTH_NAME = 'google'
-
-    def get_oauth_name(self):
-        return self.OAUTH_NAME
 
     async def get_profile_info(self, access_token):
         async with self.get_httpx_client() as client:
@@ -122,19 +125,19 @@ class GoogleBackend(OAuthBackend):
                 # PROFILE_ENDPOINT,
                 google.PROFILE_ENDPOINT,
                 # params={"personFields": "emailAddresses"},
-                params={"personFields": "photos,birthdays,genders,phoneNumbers"},
+                # params={"personFields": "photos,birthdays,genders,phoneNumbers"},
+                params={"personFields": "photos,birthdays,genders,phoneNumbers,names,nicknames"},
                 headers={**self.request_headers, "Authorization": f"Bearer {access_token}"},
             )
 
             if response.status_code >= 400:
-                # raise GetIdEmailError(response.json())
                 raise GetOAuthProfileError()
 
             data = cast(Dict[str, Any], response.json())
 
-            # user_id = data["resourceName"]
             profile_info = dict()
-            for field in "photos,birthdays,genders,phoneNumbers".split(","):
+            # for field in "photos,birthdays,genders,phoneNumbers,names,nicknames".split(","):
+            for field in "photos,birthdays,genders,phoneNumbers,names,nicknames".split(","):
                 field_data_list = data.get(field)
                 primary_data = next(
                     (field_data for field_data in field_data_list if field_data["metadata"]["primary"])
@@ -143,12 +146,12 @@ class GoogleBackend(OAuthBackend):
                 if not primary_data:
                     continue
                 # 'photos' primary_data >> {'metadata': {'primary': True, 'source': {'type': '', 'id': ''}}, 'url': 'https://lh3.googleusercontent.com/a/ACg8ocKn-HgWhuT191z-Xp6lq0Lud_nxcjMRLR1eJ0nMhMS1=s100', 'default': True}
-                if field == 'photos':
+                if field == 'photos' and (profile_img := primary_data.get('url')):
                     # "url": "https://lh3.googleusercontent.com/a/ACg8ocKn-HgWhuT191z-Xp6lq0Lud_nxcjMRLR1eJ0nMhMS1=s100",
-                    profile_info['profile_img'] = primary_data['url']
+                    profile_info['profile_img'] = profile_img
 
-                if field == 'birthdays':
-                    birthday_info = primary_data['date']
+                if field == 'birthdays' and (date := primary_data.get('date')):
+                    birthday_info = date
                     # "date": {
                     #              "year": 1900,
                     #              "month": 00,
@@ -158,15 +161,24 @@ class GoogleBackend(OAuthBackend):
                     #     str(birthday_info['day']))
                     profile_info['birthyear'] = str(birthday_info['year'])
                     profile_info['birthday'] = str(birthday_info['month']) + str(birthday_info['day'])
-                    profile_info['age_range'] = self.calculate_age_range(birthday_info['year'], birthday_info['month'], birthday_info['day'])
+                    profile_info['age_range'] = self.calculate_age_range(birthday_info['year'], birthday_info['month'],
+                                                                         birthday_info['day'])
 
-                if field == 'genders':
+                if field == 'genders' and (gender := primary_data.get('value')):
                     # "value": "male",
-                    profile_info['gender'] = primary_data['value']
+                    profile_info['gender'] = gender
 
-                if field == 'phoneNumbers':
+                if field == 'phoneNumbers' and (phone_number := primary_data.get('value')):
                     # "value": "010-yyyy-xxxx",
-                    profile_info['phone_number'] = primary_data['value']
+                    profile_info['phone_number'] = phone_number
+
+                if field == 'names' and (name := primary_data.get('displayName')):
+                    # "displayName":"조재성",
+                    profile_info['nickname'] = name
+
+                # if field == 'nicknames' and (nickname:=primary_data['value']):
+                #     # "value":"부부한의사",
+                #     profile_info['nickname'] = nickname
 
             return profile_info
 
@@ -195,9 +207,6 @@ def get_google_backends():
 class KakaoBackend(OAuthBackend):
     OAUTH_NAME = 'kakao'
 
-    def get_oauth_name(self):
-        return self.OAUTH_NAME
-
     async def get_profile_info(self, access_token):
         async with self.get_httpx_client() as client:
             # https://developers.kakao.com/docs/latest/ko/kakaologin/rest-api#propertykeys
@@ -209,7 +218,7 @@ class KakaoBackend(OAuthBackend):
             ]
 
             response = await client.post(
-                PROFILE_ENDPOINT,
+                kakao.PROFILE_ENDPOINT,
                 params={"property_keys": json.dumps(PROFILE_ADDITIONAL_PROPERTIES)},
                 headers={**self.request_headers, "Authorization": f"Bearer {access_token}"},
             )
@@ -249,13 +258,18 @@ class KakaoBackend(OAuthBackend):
 
             kakao_account = data['kakao_account']
 
-            if kakao_account.get('profile'):
-                profile_info['profile_img'] = kakao_account['profile'].get('thumbnail_image_url', None)
+            if profile := kakao_account.get('profile'):
+                profile_info['profile_img'] = profile.get('thumbnail_image_url', None)
+                if nickname := profile.get('nickname', None):
+                    profile_info['nickname'] = nickname
+
             if kakao_account.get('birthday'):
                 profile_info['birthday'] = kakao_account['birthday']
+
             if kakao_account.get('has_age_range'):
                 # profile_info['birthday'] = kakao_account['age_range'] + profile_info['birthday']
                 profile_info['age_range'] = kakao_account['age_range']
+
             if kakao_account.get('gender'):
                 profile_info['gender'] = kakao_account['gender']
 
@@ -285,4 +299,68 @@ kakao_bearer_backend = KakaoBackend(
 def get_kakao_backends():
     return [
         kakao_cookie_backend, kakao_bearer_backend
+    ]
+
+
+class DiscordBackend(OAuthBackend):
+    OAUTH_NAME = 'discord'
+
+    async def get_profile_info(self, access_token):
+        async with self.get_httpx_client() as client:
+            response = await client.get(
+                discord.PROFILE_ENDPOINT,
+                # params={},
+                headers={**self.request_headers, "Authorization": f"Bearer {access_token}"},
+            )
+            # print("response.json()", response.json())
+            # {
+            #     "id":"878294287895363644",
+            #     "username":"tingstyle1",
+            #     "avatar":"62705e264ab2d60adf3e947f07049c39", # 지정안했다면 None으로 들어가있다.
+            #     "discriminator":"0",
+            #     "public_flags":0,
+            #     "flags":0,
+            #     "banner":"None",
+            #     "accent_color":"None",
+            #     "global_name":"돌범",
+            #     "avatar_decoration_data":"None",
+            #     "banner_color":"None",
+            #     "mfa_enabled":false,
+            #     "locale":"ko",
+            #     "premium_type":0,
+            #     "email":"tingstyle1@gmail.com",
+            #     "verified":true
+            # }
+            if response.status_code >= 400:
+                raise GetOAuthProfileError()
+
+            profile_dict = dict()
+
+            data = cast(Dict[str, Any], response.json())
+            if avatar_hash := data.get('avatar'):
+                profile_dict['profile_img'] = f"https://cdn.discordapp.com/avatars/{data['id']}/{avatar_hash}.png"
+            if nickname := data.get('global_name'):
+                profile_dict['nickname'] = nickname
+
+        return profile_dict
+
+
+discord_cookie_backend = DiscordBackend(
+    name="cookie",
+    transport=get_cookie_transport(),
+    get_strategy=get_jwt_strategy,
+    has_profile_callback=True,
+)
+
+discord_bearer_backend = DiscordBackend(
+    name="bearer",
+    transport=get_bearer_transport(),
+    get_strategy=get_jwt_strategy,
+    has_profile_callback=True,
+)
+
+
+def get_discord_backends():
+    return [
+        discord_cookie_backend, discord_bearer_backend
     ]

@@ -2,13 +2,14 @@ from fastapi import Depends
 from fastapi_users import FastAPIUsers
 
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from httpx_oauth.clients.discord import DiscordOAuth2
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.kakao import KakaoOAuth2
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.config import JWT_SECRET
 from app.database.conn import db
-from app.libs.auth.backends.oauth import get_google_backends, get_kakao_backends
+from app.libs.auth.backends.oauth import get_google_backends, get_kakao_backends, get_discord_backends
 from app.libs.auth.oauth_clients import google_oauth_client, get_oauth_clients
 from app.models import Users, OAuthAccount
 from app.schemas import UserRead, UserCreate, UserUpdate
@@ -91,6 +92,18 @@ def get_oauth_routers():
 
         elif isinstance(oauth_client, KakaoOAuth2):
             for backend in get_kakao_backends():
+                routers.append({
+                    "name": f'{oauth_client.name}/' + backend.name,
+                    "router": fastapi_users.get_oauth_router(
+                        oauth_client=oauth_client,
+                        backend=backend,
+                        state_secret=JWT_SECRET,
+                        associate_by_email=True,
+                    )
+                })
+
+        elif isinstance(oauth_client, DiscordOAuth2):
+            for backend in get_discord_backends():
                 routers.append({
                     "name": f'{oauth_client.name}/' + backend.name,
                     "router": fastapi_users.get_oauth_router(
