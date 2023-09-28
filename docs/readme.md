@@ -8,7 +8,7 @@
     - asyncio를 적용한 비동기 어플리케이션 개발
 - 구현 목표
     - fastAPI, DB 등을 모두 Dockerizing 한다.
-    - Oauth 인증을 적용한다
+    - Oauth 인증을 통한 소셜로그인을 적용한다
     - Test 코드를 작성하고 CI를 활용한다.
     - Raw query대신 sqlalchemy 2.0의 mixin 등을 구현해서 활용한다.
 
@@ -30,32 +30,9 @@
     - config.py / conn.py 싱글톤 적용
     - test를 위해 faker패키지를 통한 Provider 활용
     - `fastapi-users` 패키지를 도입하여 `기존 User모델과 통합` 및 Oauth 소셜 로그인시 `CustomBackend` 구현으로 추가정보 추출하여 Users모델에 입력
-        1. google 로그인 -> people API 중 personFields=`photos,birthdays,genders,phoneNumbers` 추가 입력
-            - 구글클라우드 프로젝트에서 OAuth 동의화면 scope(기본 .../auth/userinfo.email, .../auth/userinfo.profile)에 scope 추가
-                - `.../auth/user.birthday.read`, `.../auth/user.gender.read`, `.../auth/user.phonenumbers.read`
-            ```python
-            # 1. client scope 추가(profile, email 외)
-            google_oauth_client = GoogleOAuth2(
-                GOOGLE_CLIENT_ID,
-                GOOGLE_CLIENT_SECRET,
-                scopes=[
-                    "openid",
-                    "https://www.googleapis.com/auth/userinfo.profile",  # 구글 클라우드 - 동의에서 설정한 범위
-                    "https://www.googleapis.com/auth/userinfo.email",
-                    "https://www.googleapis.com/auth/user.birthday.read",  # 추가 액세스 요청 3개 (전부 people api)
-                    "https://www.googleapis.com/auth/user.gender.read",
-                    "https://www.googleapis.com/auth/user.phonenumbers.read",
-                ])
-            
-            # 2. backend 객체 생성시, has_profile_callback=True 입력
-            google_cookie_backend = GoogleBackend(
-                name="cookie",
-                transport=get_cookie_transport(),
-                get_strategy=get_jwt_strategy,
-                has_profile_callback=True, # 추가 프로필 요청 여부
-            )
-            ```
+        1. google 로그인
         2. kakao 로그인
+        3. discord 로그인
 
 
 - Todo
@@ -132,7 +109,7 @@
 3. 해당 sessino generator는 외부 session 주입이 없을 때, 자체 session을 발급할 때 쓰인다.
     ```python
     class ObjectMixin(BaseMixin):
-        #...
+        # ...
         async def set_session(self, session: AsyncSession = None):
     
             # 외부 O or 자신X

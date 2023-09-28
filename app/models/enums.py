@@ -9,7 +9,7 @@ class UserStatus(str, Enum):
 
 
 class SnsType(str, Enum):
-    EMAIL: str = "email"
+    # EMAIL: str = "email"
     # FACEBOOK: str = "facebook"
     GOOGLE: str = "google"
     KAKAO: str = "kakao"

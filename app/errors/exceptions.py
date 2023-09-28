@@ -181,6 +181,15 @@ class KakaoSendMeMessageException(BadRequestException):
         )
 
 
+class RequestError(BadRequestException):
+    def __init__(self, detail="잘못된 요청이 들어왔습니다.", exception: Exception = None):
+        super().__init__(
+            code_number=15,
+            detail=detail,
+            exception=exception
+        )
+
+
 # 401
 class NotAuthorized(APIException):
 

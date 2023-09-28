@@ -10,10 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.config import JWT_SECRET
 from app.database.conn import db
 from app.libs.auth.backends.oauth import get_google_backends, get_kakao_backends, get_discord_backends
-from app.libs.auth.oauth_clients import google_oauth_client, get_oauth_clients
+from app.libs.auth.oauth_clients import get_oauth_clients
 from app.models import Users, OAuthAccount
 from app.schemas import UserRead, UserCreate, UserUpdate
-from app.libs.auth.backends.base import cookie_auth_backend, get_auth_backends
+from app.libs.auth.backends.base import get_auth_backends
 from app.libs.auth.managers import UserManager
 
 
@@ -33,7 +33,7 @@ async def get_password_helper(user_manager=Depends(get_user_manager)):
 
 fastapi_users = FastAPIUsers[Users, int](
     get_user_manager,
-    get_auth_backends(), # oauth가 아닌 단순 /login, /logout  + /regitser router 생성용
+    get_auth_backends(),  # oauth가 아닌 단순 /login, /logout  + /regitser router 생성용
 )
 
 
@@ -58,18 +58,6 @@ def get_users_router():
         user_schema=UserRead,
         user_update_schema=UserUpdate
     )
-
-
-# def get_oauth_router():
-#     router = fastapi_users.get_oauth_router(
-#         oauth_client=google_oauth_client,
-#         backend=cookie_auth_backend,
-#         state_secret=JWT_SECRET,
-#         associate_by_email=True,
-#         # redirect_url=None,  # 자동으로 /callback router로 redirect 됨.
-#         # redirect_url=config.FRONTEND_URL + '', # 만약, front를 거쳐가는 경우, 직접 입력해야함.
-#     )
-#     return router
 
 
 def get_oauth_routers():
