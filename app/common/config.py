@@ -66,6 +66,8 @@ KAKAO_CLIENT_SECRET: str = environ.get("KAKAO_CLIENT_SECRET", None)
 
 DISCORD_CLIENT_ID: str = environ.get("DISCORD_CLIENT_ID", None)
 DISCORD_CLIENT_SECRET: str = environ.get("DISCORD_CLIENT_SECRET", None)
+DISCORD_BOT_TOKEN: str = environ.get("DISCORD_BOT_TOKEN", None)
+DISCORD_BOT_SECRET_KEY: str = environ.get("DISCORD_BOT_SECRET_KEY", None)
 
 
 @dataclass

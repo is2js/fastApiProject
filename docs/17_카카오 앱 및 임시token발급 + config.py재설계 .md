@@ -320,7 +320,7 @@ class Logger:
     from app.database.conn import db
     from app.middlewares.access_control import AccessControl
     from app.middlewares.trusted_hosts import TrustedHostMiddleware
-    from app.routers import index
+    from app.pages import index
     
     
     def create_app(config: Config):

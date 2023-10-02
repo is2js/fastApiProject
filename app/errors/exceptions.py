@@ -323,3 +323,33 @@ class OAuthProfileUpdateFailException(DBException):
             detail=f"{obj}의 소셜로그인 프로필 업데이트에 실패했습니다.",
             exception=exception
         )
+
+
+# 500 - discord 에러
+class DiscordError(APIException):
+    def __init__(
+            self, *,
+            code_number: [str, int] = "0",
+            detail: str = None,
+            exception: Exception = None
+    ):
+        if not isinstance(code_number, str):
+            code_number = str(code_number)
+
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code=f"{status.HTTP_500_INTERNAL_SERVER_ERROR}{code_number.zfill(4)}",
+            message="Discord 에러입니다.",
+            detail=detail,
+            exception=exception
+        )
+
+
+class DiscordIpcError(DiscordError):
+
+    def __init__(self, *, endpoint: str = "", exception: Exception = None):
+        super().__init__(
+            code_number=1,
+            detail=f"{endpoint}에서 Ipc 통신 에러가 발생했습니다.",
+            exception=exception
+        )

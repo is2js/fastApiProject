@@ -1,22 +1,18 @@
 import time
 from typing import Optional
 
-from fastapi_users.authentication import JWTStrategy
-from fastapi_users.jwt import decode_jwt
 from starlette.datastructures import Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 
-# from app.api.dependencies.auth import get_jwt_strategy, cookie_backend, fastapi_users
-from app.common.config import config, JWT_SECRET
+from app.common.config import config
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST, SERVICE_PATH_REGEX, API_PATH_REGEX
 from app.database.conn import db
 from app.errors.exception_handler import exception_handler
 from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized, DBException, \
     InvalidServiceQueryStringException, InvalidServiceHeaderException, NoKeyMatchException, \
     InvalidServiceTimestampException
-from app.libs.auth.strategies import get_jwt_strategy
 from app.models import ApiKeys
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token

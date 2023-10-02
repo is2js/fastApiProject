@@ -12,7 +12,7 @@
     - Test 코드를 작성하고 CI를 활용한다.
     - Raw query대신 sqlalchemy 2.0의 mixin 등을 구현해서 활용한다.
 
-- **[참고 프로젝트](https://github.com/riseryan89/notification-api) `개선 사항`**
+- **[base structure](https://github.com/riseryan89/notification-api)에 기능 구현사항**
     - 제작 과정 문서화 + 도커라이징 + 프로젝트 구조 변경(api패키지 도입)
     - DB table 자동 생성 적용
     - schemas.py <-> models.py 구분
@@ -33,6 +33,8 @@
         1. google 로그인
         2. kakao 로그인
         3. discord 로그인
+    - Discord bot 및 ipc server 생성 -> Discord bot dashboard 페이지 생성
+       - `py-cord` 및 `ezcord` 패키지 사용
 
 
 - Todo

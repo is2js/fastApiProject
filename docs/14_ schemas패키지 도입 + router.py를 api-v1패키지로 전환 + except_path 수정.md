@@ -131,7 +131,7 @@ from . import index
 ```python
 # main.py
 
-from app.routers import index
+from app.pages import index
 
 
 # ...

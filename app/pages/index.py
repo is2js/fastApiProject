@@ -6,30 +6,37 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.database.conn import db
+from app.libs.discord.ipc_client import discord_ipc_client
 from app.models import Users
-from app.schemas import UserMe
+from app.pages import templates
 
 router = APIRouter()
 
 
-async def create_random_user(session=None, auto_commit=False, refresh=False):
-    import random
-    import string
-    random_email = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    random_email += '@gmail.com'
-    user = await Users.create(email=random_email, session=session, auto_commit=auto_commit, refresh=refresh)
-    return user
-
-
-# create가 포함된 route는 공용세션을 반드시 주입한다.
-@router.get("/", response_model=UserMe)
-async def index(session: AsyncSession = Depends(db.session)):
+@router.get("/")
+async def index(request: Request, session: AsyncSession = Depends(db.session)):
     """
     `ELB 상태 체크용 API` \n
     서버의 시각을 알려줍니다.
     """
-    user = await Users.create(email='2@sdf.com', auto_commit=True, refresh=True)
-    return user
+    # bot에 연결된 server.route에 요청
+    guild_count = await discord_ipc_client.request("guild_count")
+
+    print("guild_count", guild_count)
+    # guild_count <ServerResponse response=1 status=OK>
+    print("guild_count.response", guild_count.response)
+    # guild_count.response 1
+
+    context = {
+        'request': request,  # 필수
+        'count': guild_count.response,  # 커스텀 데이터
+    }
+    return templates.TemplateResponse(
+        "index.html",
+        context
+    )
+
+
 @router.get("/test")
 async def test(request: Request):
     try:
