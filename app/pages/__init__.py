@@ -10,10 +10,8 @@ current_directory = Path(__file__).resolve().parent
 templates_directory = current_directory.parent / "templates"
 templates = Jinja2Templates(directory=str(templates_directory))
 
-from . import index
+from . import index, discord
 
 router = APIRouter()
-router.include_router(
-    index.router,
-    tags=['Pages']
-    )
+router.include_router(index.router, tags=['Pages'])
+router.include_router(discord.router, prefix='/discord', tags=['Pages'])

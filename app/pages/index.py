@@ -16,26 +16,16 @@ router = APIRouter()
 @router.get("/")
 async def index(request: Request, session: AsyncSession = Depends(db.session)):
     """
-    `ELB 상태 체크용 API` \n
-    서버의 시각을 알려줍니다.
+    `ELB 헬스 체크용`
     """
-    # bot에 연결된 server.route에 요청
-    guild_count = await discord_ipc_client.request("guild_count")
-
-    print("guild_count", guild_count)
-    # guild_count <ServerResponse response=1 status=OK>
-    print("guild_count.response", guild_count.response)
-    # guild_count.response 1
-
-    context = {
-        'request': request,  # 필수
-        'count': guild_count.response,  # 커스텀 데이터
-    }
-    return templates.TemplateResponse(
-        "index.html",
-        context
-    )
-
+    return "ok"
+    # context = {
+    #     'request': request,  # 필수
+    # }
+    # return templates.TemplateResponse(
+    #     "index.html",
+    #     context
+    # )
 
 @router.get("/test")
 async def test(request: Request):

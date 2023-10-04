@@ -105,4 +105,11 @@ def get_oauth_routers():
     return routers
 
 
-active_user = fastapi_users.current_user(active=True)
+current_active_user = fastapi_users.current_user(
+    active=True,
+)
+
+optional_current_active_user = fastapi_users.current_user(
+    active=True,
+    optional=True,
+)

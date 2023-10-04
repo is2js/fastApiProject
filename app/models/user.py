@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 import string
 from typing import List
@@ -42,9 +44,9 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
     # 20~29: 20세 이상 30세 미만
     # 80~89: 80세 이상 90세 미만
     # 90~: 90세 이상
-    age_range = Column(String(length=5), nullable=True) # 카카오 형식인데, 구글 등에서 변환하길.
-    birthyear = Column(String(length=4), nullable=True) # kakao는 '출생연도'가 비즈니스 아니면 동의화면 권한없음. 구글에서는 'year'로 바로 들어옴
-    birthday = Column(String(length=4), nullable=True) # 1218. 구글에서는 'month', 'day'를 합해서 넣기
+    age_range = Column(String(length=5), nullable=True)  # 카카오 형식인데, 구글 등에서 변환하길.
+    birthyear = Column(String(length=4), nullable=True)  # kakao는 '출생연도'가 비즈니스 아니면 동의화면 권한없음. 구글에서는 'year'로 바로 들어옴
+    birthday = Column(String(length=4), nullable=True)  # 1218. 구글에서는 'month', 'day'를 합해서 넣기
 
     # last_seen = Column(DateTime, server_default=func.now(), nullable=True)
     # => db서버의 시간대(KST)로 들어가버림.
@@ -60,6 +62,16 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
                             cascade="all, delete-orphan",
                             lazy=True
                             )
+
+    def get_oauth_access_token(self, oauth_name: str):
+        """
+        lazy="joined"되어 session 없이, oauth_accounts 모델에서 특정 oauth의 access_token을 얻는 메서드
+        """
+        for existing_oauth_account in self.oauth_accounts:
+            if existing_oauth_account.oauth_name == oauth_name:
+                return existing_oauth_account.access_token
+
+        return None
 
 
 class OAuthAccount(BaseModel, SQLAlchemyBaseOAuthAccountTable[int]):

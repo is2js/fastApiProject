@@ -9,7 +9,6 @@ from starlette.responses import Response, RedirectResponse
 from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper, get_oauth_routers
 from app.database.conn import db
 from app.errors.exceptions import (
-    EmailAlreadyExistsException,
     NoSupportException,
     NoUserMatchException, RequestError,
 )
@@ -27,18 +26,11 @@ for oauth_router in get_auth_routers():
         router=oauth_router['router'],
         prefix=f"/{oauth_router['name']}",
     )
-    # /cookie/login + logout
+    # /api/v1/auth/cookie/login + logout
 
 router.include_router(
     router=get_register_router(),
-)  # /register
-
-# /api/v1/auth/users/jwt/google/cookie/authorize
-# /api/v1/auth//users/jwt/google/cookie/callback
-# router.include_router(
-#     router=get_oauth_router(),
-#     prefix='/users/jwt/google'
-# )
+)  # /api/v1/auth/register
 
 # /api/v1/auth/google/cookie or bearer/authorize
 # /api/v1/auth/google/cookie or bearer/callback
@@ -48,56 +40,6 @@ for oauth_router in get_oauth_routers():
         prefix=f"/{oauth_router['name']}",
     )
 
-
-# @router.post("/register/{sns_type}", status_code=201, response_model=Token)
-# async def register(sns_type: SnsType, user_request: UserRequest, session: AsyncSession = Depends(db.session),
-#                    password_helper=Depends(get_password_helper)):
-#     """
-#     `회원가입 API`\n
-#     :param sns_type:
-#     :param user_request:
-#     :param session:
-#     :return:
-#     """
-#     if sns_type == SnsType.EMAIL:
-#         # 검증1) 모든 요소(email, pw)가 다들어와야한다.
-#         if not user_request.email or not user_request.password:
-#             # return JSONResponse(status_code=400, content=dict(message="Email and PW must be provided."))
-#             raise ValueError('이메일 혹은 비밀번호를 모두 입력해주세요.')
-#
-#         # user = await Users.get_by_email(session, user_register_info.email)
-#         exists_user = await Users.filter_by(session=session, email=user_request.email).exists()
-#         if exists_user:
-#             # return JSONResponse(status_code=400, content=dict(message="EMAIL_EXISTS"))
-#             raise EmailAlreadyExistsException()
-#
-#         # 비밀번호 해쉬 -> 해쉬된 비밀번호 + email -> user 객체 생성
-#         # hashed_password = await hash_password(user_request.password)
-#         hashed_password = password_helper.hash(user_request.password)
-#
-#         # new_user = await Users.create(session=session, auto_commit=True, pw=hash_pw, email=user_request.email)
-#         new_user = await Users.create(session=session, auto_commit=True, hashed_password=hashed_password,
-#                                       email=user_request.email)
-#
-#         # user객체 -> new_user_data (dict by pydantic) -> create_access_token -> Token Schema용 dict 반환
-#         new_user_data = UserToken.model_validate(new_user).model_dump(exclude={'password', 'marketing_agree'})
-#
-#         new_token = dict(
-#             Authorization=f"Bearer {await create_access_token(data=new_user_data)}"
-#         )
-#         return new_token
-#
-#     # return JSONResponse(status_code=400, content=dict(message="NOT_SUPPORTED"))
-#     raise NoSupportException()
-
-
-# def get_user_request_for_sns_type(sns_type: SnsType) -> [UserRequest, None]:
-#     print(f"sns_type >> {sns_type}") # SnsType.EMAIL
-#
-#     if sns_type == SnsType.EMAIL:
-#         return UserRequest()
-#     else:
-#         return
 
 @router.post("/login/email", status_code=200, response_model=Token)
 async def login(

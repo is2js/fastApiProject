@@ -2,6 +2,7 @@ from typing import Any, Optional, Literal
 from fastapi import Request
 
 from fastapi_users.authentication import CookieTransport, BearerTransport
+from starlette import status
 from starlette.responses import RedirectResponse
 
 from app.common.config import config
@@ -33,27 +34,30 @@ def get_bearer_transport():
 # rediect되는 cookie transport
 class CookieRedirectTransport(CookieTransport):
     ...
+    redirect_url: str
 
-    # async def get_login_response(self, token: str) -> Any:
-    #     response = RedirectResponse(config.FRONTEND_URL, 302)
-    #     self._set_login_cookie(response, token)
-    #     return response
+    def __init__(self, redirect_url, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.redirect_url = redirect_url
 
     async def get_login_response(self, token: str) -> Any:
-        redirect_url = config.FRONTEND_URL
-
         response = await super().get_login_response(token)
 
-        response.status_code = 302
-        response.headers["Location"] = redirect_url
+        response.status_code = status.HTTP_302_FOUND
+
+        # 생성시, request.url_for('라우트명')을 입력할 시, URL객체가 들어와 에러나므로 str() 필수
+        response.headers["Location"] = str(self.redirect_url) if not isinstance(self.redirect_url, str) \
+            else self.redirect_url
 
         return response
 
 
-def get_cookie_redirect_transport():
+def get_cookie_redirect_transport(redirect_url):
     return CookieRedirectTransport(
+        redirect_url,
         cookie_name='Authorization',
         cookie_max_age=USER_AUTH_MAX_AGE,
+        #### local + test환경에서 필수로 False해야지, redirect 가능해진다.
         # cookie_httponly=False,  # js요청 허용
         # cookie_secure=False, # local/test환경에서 http asyncClient요청 허용
     )

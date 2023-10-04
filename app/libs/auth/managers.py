@@ -1,5 +1,6 @@
 # from typing import Optional
 # from fastapi import  Request
+import uuid
 from typing import Optional
 
 from fastapi_users import IntegerIDMixin, BaseUserManager, models
@@ -17,11 +18,9 @@ class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
 
     async def on_after_login(self, user: models.UP, request: Optional[Request] = None,
                              response: Optional[Response] = None) -> None:
-
         await self.user_db.update(
             user, {"last_seen": D.datetime()}
         )
-
 
     # async def on_after_register(self, user: Users, request: Optional[Request] = None):
     #     print(f"User {user.id} has registered.")
@@ -35,4 +34,3 @@ class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
     #         self, user: Users, token: str, request: Optional[Request] = None
     # ):
     #     print(f"Verification requested for user {user.id}. Verification token: {token}")
-

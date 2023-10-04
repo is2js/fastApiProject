@@ -18,7 +18,7 @@ class DiscordBackend(OAuthBackend):
             )
             # print("response.json()", response.json())
             # {
-            #     "id":"878294287895363644",
+            #     "id":"ㅌㅌㅌ",
             #     "username":"tingstyle1",
             #     "avatar":"62705e264ab2d60adf3e947f07049c39", # 지정안했다면 None으로 들어가있다.
             #     "discriminator":"0",

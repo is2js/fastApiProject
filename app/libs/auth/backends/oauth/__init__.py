@@ -1,5 +1,5 @@
 from app.libs.auth.strategies import get_jwt_strategy
-from app.libs.auth.transports import get_cookie_transport, get_bearer_transport
+from app.libs.auth.transports import get_cookie_transport, get_bearer_transport, get_cookie_redirect_transport
 from .discord import DiscordBackend
 from .google import GoogleBackend
 from .kakao import KakaoBackend
@@ -44,6 +44,7 @@ def get_discord_backends():
         DiscordBackend(
             name="cookie",
             transport=get_cookie_transport(),
+            # transport=get_cookie_redirect_transport(),
             get_strategy=get_jwt_strategy,
             has_profile_callback=True,
         ),

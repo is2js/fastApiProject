@@ -1,12 +1,13 @@
 import datetime
 import ipaddress
 import re
+from urllib.parse import urlparse, parse_qs, urlencode
 
 import bcrypt
 import jwt
 
 from app.common.consts import JWT_ALGORITHM
-from app.common.config import JWT_SECRET
+from app.common.config import JWT_SECRET, config, ProdConfig
 from app.errors.exceptions import TokenDecodeException, TokenExpiredException, InvalidIpException
 
 
@@ -59,3 +60,23 @@ async def hash_password(plain_password: str):
 
 def verify_password(hashed_password, plain_password):
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+def update_query_string(url: str, **kwargs):
+    parsed_url = urlparse(url)
+    query_params = parse_qs(parsed_url.query)
+
+    # if not isinstance(config, ProdConfig):
+    #     new_redirect_uri = f"http://{config.HOST_MAIN}:{config.PORT}/discord/callback"
+    # else:
+    #     new_redirect_uri = f"https://{config.HOST_MAIN}/discord/callback"
+    # # 인코드된 redirect_uri을 다시 URL에 삽입하여 새로운 authorize_url 생성
+    # query_params['redirect_uri'] = [new_redirect_uri]
+
+    for key, value in kwargs.items():
+        query_params[key] = [value]
+    updated_query = urlencode(query_params, doseq=True)
+
+    new_url = parsed_url._replace(query=updated_query).geturl()
+
+    return new_url

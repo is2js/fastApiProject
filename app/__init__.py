@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from app import api, pages
-from app.api.dependencies.auth import active_user
+from app.api.dependencies.auth import current_active_user
 from app.common.config import Config, DISCORD_BOT_TOKEN
 from app.database.conn import db
 from app.libs.discord.bot import discord_bot
@@ -58,7 +58,7 @@ def create_app(config: Config):
     app.include_router(api.router, prefix='/api')
 
     @app.get("/authenticated-route")
-    async def authenticated_route(user: Users = Depends(active_user)):
+    async def authenticated_route(user: Users = Depends(current_active_user)):
         return dict(
             message=f"Hello, {user.id}"
         )

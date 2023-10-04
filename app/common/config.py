@@ -66,8 +66,10 @@ KAKAO_CLIENT_SECRET: str = environ.get("KAKAO_CLIENT_SECRET", None)
 
 DISCORD_CLIENT_ID: str = environ.get("DISCORD_CLIENT_ID", None)
 DISCORD_CLIENT_SECRET: str = environ.get("DISCORD_CLIENT_SECRET", None)
+
 DISCORD_BOT_TOKEN: str = environ.get("DISCORD_BOT_TOKEN", None)
 DISCORD_BOT_SECRET_KEY: str = environ.get("DISCORD_BOT_SECRET_KEY", None)
+DISCORD_AUTHORIZE_URL: str = environ.get("DISCORD_AUTHORIZE_URL", None)
 
 
 @dataclass
@@ -134,9 +136,10 @@ class Config(metaclass=SingletonMetaClass):
             database=self.MYSQL_DATABASE,
         )
 
-        # redirect시 필요한 프론트 URL 동적으로 만들기
-        self.FRONTEND_URL: str = f'http://localhost:{self.PORT}/authenticated-route' if API_ENV != 'prod' \
-            else f'https://{HOST_MAIN}'
+        # redirect시 필요한 프론트 DOMAIN 동적으로 만들기
+        # self.FRONTEND_URL: str = f'http://localhost:{self.PORT}/authenticated-route' if API_ENV != 'prod' \
+        #     else f'https://{HOST_MAIN}'
+        self.DOMAIN: str = f'http://{self.HOST_MAIN}:{self.PORT}' if API_ENV != 'prod' else f'https://{HOST_MAIN}'
 
     @staticmethod
     def get(option: Optional[str] = None) -> Union["LocalConfig", "ProdConfig", "TestConfig"]:
@@ -158,6 +161,8 @@ class Config(metaclass=SingletonMetaClass):
 
 @dataclass
 class LocalConfig(Config):
+    HOST_MAIN: str = "localhost"
+
     PROJ_RELOAD: bool = True  # 자동 재시작
     DEBUG: bool = True  # access_control service를 jwt로 처리(not access_key+ secret key)
 
@@ -190,6 +195,8 @@ class ProdConfig(Config):
 @dataclass
 class TestConfig(Config):
     TEST_MODE: bool = True  # test db 관련 설정 실행
+
+    HOST_MAIN: str = "localhost"
 
     # sqlalchemy
     DB_ECHO: bool = False
