@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}BOT DASHBOARD{% endblock %}</title>
+    <!-- htmx -->
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', path='css/style.css')}}">
+    <!-- jQuery 라이브러리 추가 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.6.1"
+            integrity="sha384-tvG/2mnCFmGQzYC1Oh3qxQ7CkQ9kMzYjWZSNtrRZygHPDDqottzEJsqS4oUVodhW"
+            crossorigin="anonymous"></script>
+
+</head>
+<body>
+<!-- nav -->
+<h1>Discord bot Dashboard</h1>
+
+{% if user %}
+<p> Hey <strong>{{user.nickname}}</strong>, bot이 활동하는 디스코드 서버를 선택해주세요.</p>
+<button class="btn-logout" onclick="logout();return false;">로그아웃</button>
+{% else %}
+<a href="{{authorize_url}}">
+    <button class="btn-login">Login</button>
+</a>
+{% endif %}
+<!-- nav -->
+
+<!-- content -->
+{% block content %}
+
+{% endblock content %}
+<!-- content -->
+
+
+
+
+
+<script>
+    //유틸리티 시작
+
+    function fetchPost(url, data) {
+        return fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(data),
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    console.log(response.status)
+                    return false;
+                }
+            })
+    }
+
+    function fetchGet(url, data) {
+        let query = Object.keys(data)
+            .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(data[k]))
+            .join('&');
+
+        return fetch(url + "?" + query, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        })
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    return false;
+                }
+            })
+    }
+
+    //유틸리티 끝
+    function logout() {
+        // 로그아웃 버튼 클릭 이벤트 처리
+        let response = fetchPost('{{url_for("auth:cookie.logout")}}', {});
+        if (response) {
+            alert('로그아웃 성공')
+            window.location.reload();
+        } else {
+            alert('로그아웃 실패')
+        }
+    }
+</script>
+</body>
+</html>

@@ -2,34 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi_users import BaseUserManager, models
 from fastapi_users.exceptions import UserAlreadyExists
 from fastapi_users.router import ErrorCode
-from httpx_oauth.oauth2 import OAuth2Token
 from starlette import status
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
-
-from app.common.consts import USER_AUTH_MAX_AGE
 from app.libs.auth.strategies import get_jwt_strategy
-from app.libs.auth.transports import get_cookie_transport, get_cookie_redirect_transport
+from app.libs.auth.transports import get_cookie_redirect_transport
+from app.libs.discord.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
 from app.models import Users
-from app.api.dependencies.auth import get_user_manager, current_active_user, optional_current_active_user
-from app.common.config import config, DISCORD_AUTHORIZE_URL
-from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException, NotAuthorized
+from app.api.dependencies.auth import get_user_manager, optional_current_active_user, discord_user
+from app.common.config import DISCORD_GENERATED_AUTHORIZATION_URL
+from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
 from app.libs.discord.ipc_client import discord_ipc_client
 from app.libs.discord.oauth_client import discord_client
 from app.pages import templates
-from app.schemas import UserToken
-from app.utils.auth_utils import update_query_string, create_access_token
+from app.utils.auth_utils import update_query_string
 from app.utils.date_utils import D
 
 router = APIRouter()
 
-authorize_url = "https://discord.com/api/oauth2/authorize?client_id=1156507222906503218&" \
-                "redirect_uri=http%3A%2F%2Flocalhost%3A8001%2Fdiscord%2Fcallback" \
-                "&response_type=code&scope=identify%20guilds"
-
 
 @router.get("/dashboard")
-async def discord_dashboard(request: Request):
+async def discord_dashboard(request: Request, user: Users = Depends(optional_current_active_user)):
     """
     `Discord Bot Dashboard`
     """
@@ -39,14 +31,14 @@ async def discord_dashboard(request: Request):
     context = {
         'request': request,  # 필수
         'count': guild_count.response,  # 커스텀 데이터
-        'authorize_url': update_query_string(
-            DISCORD_AUTHORIZE_URL,
-            # redirect_uri=config.DOMAIN + '/discord/callback'
-            redirect_uri=request.url_for('discord_callback')
+        'authorize_url': await discord_client.get_authorization_url(
+            redirect_uri=str(request.url_for('discord_callback')),
+            state_data=dict(next=str(request.url)),
         ),
+        'user': user,  # None or user
     }
     return templates.TemplateResponse(
-        "discord_dashboard.html",
+        "bot_dashboard/discord_dashboard.html",
         context
     )
 
@@ -54,18 +46,27 @@ async def discord_dashboard(request: Request):
 @router.get("/callback", name='discord_callback')
 async def discord_callback(
         request: Request,
-        code: str,
+        # code: str,
+        # state: Optional[str] = None,
+        access_token_and_next_url: DiscordAuthorizeCallback = Depends(
+            get_discord_callback(route_name='discord_callback')
+        ),  # 인증서버가 돌아올떄 주는 code와 state를 내부에서 받아 처리
         user_manager: BaseUserManager[models.UP, models.ID] = Depends(get_user_manager),
 ):
     """
     `Discord callback for Developer OAuth Generated URL`
     """
+    oauth2_token, next_url = access_token_and_next_url
+
+    # print(f"state >> {state}")
+    # decode_jwt(state, JWT_SECRET, [STATE_TOKEN_AUDIENCE])
+    # decode state >> {'next': 'http://localhost:8001/discord/dashboard', 'aud': 'fastapi-users:oauth-state', 'exp': 1696493515}
 
     # 1. 받은 code 및 redirect_url로 OAuth2Token (dict wrapping 객체)을 응답받는다.
-    oauth2_token: OAuth2Token = await discord_client.get_access_token(
-        code=code,
-        redirect_uri=request.url_for('discord_callback'),  # 콜백라우터지만, access_token요청시 자신의 url을 한번 더 보내줘야한다.
-    )
+    # oauth2_token: OAuth2Token = await discord_client.get_access_token(
+    #     code=code,
+    #     redirect_uri=request.url_for('discord_callback'),  # 콜백라우터지만, access_token요청시 자신의 url을 한번 더 보내줘야한다.
+    # )
 
     # 2. 응답받은 oauth2_token객체로 만료를 확인하고
     if oauth2_token.is_expired():
@@ -97,8 +98,9 @@ async def discord_callback(
             expires_at=oauth2_token.get("expires_at"),
             refresh_token=oauth2_token.get("refresh_token"),
             request=request,
-            associate_by_email=True,
-            is_verified_by_default=False,
+            associate_by_email=True,  # sns로그인시, 이미 email가입이 있어도, oauth_account로 등록을 허용한다.
+            # is_verified_by_default=False,
+            is_verified_by_default=True,  # sns로그인한 사람이라면 email인증을 안거쳐도 된다고 하자.
         )
 
     except UserAlreadyExists:
@@ -121,7 +123,7 @@ async def discord_callback(
                 auto_commit=True,
                 **profile_info,
                 sns_type='discord',
-                last_seen=D.datetime(), # on_after_login에 정의된 로직도 가져옴
+                last_seen=D.datetime(),  # on_after_login에 정의된 로직도 가져옴
             )
     except Exception as e:
         raise OAuthProfileUpdateFailException(obj=user, exception=e)
@@ -142,30 +144,43 @@ async def discord_callback(
     # 6. 직접 Redirect Response를 만들지 않고, fastapi-users의 쿠키용 Response제조를 위한 Cookie Transport를 Cusotm해서 Response를 만든다.
     # 3. 데이터를 뿌려주는 api router로 Redirect시킨다.
     # return RedirectResponse(url='/guilds')
+    # try:
+    #     decode_jwt(state, JWT_SECRET, [STATE_TOKEN_AUDIENCE])
+    #     next_url = decode_jwt(state, JWT_SECRET, [STATE_TOKEN_AUDIENCE])['next'] if state \
+    #         else str(request.url_for('discord_dashboard'))
+    # except jwt.DecodeError:
+    #     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+
     cookie_redirect_transport = get_cookie_redirect_transport(
-        redirect_url=request.url_for('guilds')  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
+        # redirect_url=request.url_for('guilds')  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
+        redirect_url=next_url  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
+        # redirect_url=request.url_for('discord_dashboard')  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
     )
     response = await cookie_redirect_transport.get_login_response(user_token_for_cookie)
 
     return response
 
 
+# async def guilds(request: Request, user: Users = Depends(current_active_user)):
 @router.get("/guilds")
-async def guilds(request: Request, user: Users = Depends(current_active_user)):
-    # token = request.cookies.get("Authorization")
-    # if not token:
-    #     raise NotAuthorized()
+# async def guilds(request: Request, user: Users = Depends(optional_current_active_user)):
+async def guilds(request: Request, user: Users = Depends(discord_user)):
+    # if not user:
+    #     authorization_url = await discord_client.get_authorization_url(
+    #         redirect_uri=str(request.url_for('discord_callback')),
+    #         state_data=dict(next=str(request.url)),
+    #     )
+    #     return RedirectResponse(authorization_url, status_code=302)
 
-    # discord_access_token = ''
-    # for existing_oauth_account in user.oauth_accounts:
-    #     if existing_oauth_account.oauth_name == 'discord':
-    #         discord_access_token = existing_oauth_account.access_token
+    user_guilds: list = []
+    if user:
+        access_token = user.get_oauth_access_token('discord')
+        user_guilds = await discord_client.get_guilds(access_token)
+        # middel웨어없이 bot ipc통신이라 data 형식이 아니게 됨.
+        # user_guilds  >> [{'id': '1156511536316174368', 'name': '한의원 인증앱', 'icon': None, 'owner': True, 'permissions': 2147483647, 'permissions_new': '562949953421311', 'features': []}]
 
-    access_token = user.get_oauth_access_token('discord')
+    bot_guild_count = await discord_ipc_client.request("guild_count")
 
-    guilds = await discord_client.get_guilds(access_token)
-
-    # {
     #     "data":{
     #         "guilds":[
     #             {
@@ -182,4 +197,21 @@ async def guilds(request: Request, user: Users = Depends(current_active_user)):
     #     },
     #     "version":"1.0.0"
     # }
-    return dict(guilds=guilds)
+    # return dict(guilds=guilds)
+    context = {
+        'request': request,
+        'user': user,
+        'bot_guild_count': bot_guild_count.response,  # 커스텀 데이터
+
+        'authorize_url': update_query_string(
+            DISCORD_GENERATED_AUTHORIZATION_URL,
+            # redirect_uri=config.DOMAIN + '/discord/callback'
+            redirect_uri=request.url_for('discord_callback')
+        ),
+
+        'user_guilds': user_guilds,
+    }
+    return templates.TemplateResponse(
+        "bot_dashboard/guilds.html",
+        context
+    )

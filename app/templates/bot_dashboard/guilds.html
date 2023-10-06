@@ -1,0 +1,18 @@
+{% extends "bot_dashboard/discord_dashboard.html" %}
+
+{% block title %}
+Guilds | {{super()}}
+{% endblock title %}
+
+{% block content %}
+<h3>bot은 <strong>{{bot_guild_count}}</strong>개의 server에서 활동하고 있습니다.</h3>
+
+<div class="container">
+    {% for guild in user_guilds %}
+    <div class="item">
+        <img class="title" src="https://cdn.discordapp.com/embed/avatars/0.png">
+        <p class="title"><b>{{ guild.name }}</b></p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock content %}

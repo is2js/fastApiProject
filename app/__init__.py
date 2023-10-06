@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Depends
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import RedirectResponse
 from starlette.staticfiles import StaticFiles
 
 from app import api, pages
@@ -14,10 +15,9 @@ from app.libs.discord.bot import discord_bot
 from app.middlewares.access_control import AccessControl
 from app.middlewares.trusted_hosts import TrustedHostMiddleware
 from app.models import Users
+from app.pages.exceptions import RedirectException
 from app.schemas import UserRead, UserCreate
 from app.utils.http_utils import CustomJSONResponse
-
-
 
 
 def create_app(config: Config):
@@ -56,6 +56,17 @@ def create_app(config: Config):
     # route 등록
     app.include_router(pages.router)  # template or test
     app.include_router(api.router, prefix='/api')
+
+    # template용 discord auth 없이 접근시 redirect
+    @app.exception_handler(RedirectException)
+    async def login_required_exception_handler(request, exc):
+        print(f"exc.redirect_url >> {exc.redirect_url}")
+
+        return RedirectResponse(exc.redirect_url)
+        # if is_htmx(request):
+        #     response.status_code = 200
+        #     response.headers['HX-Redirect'] = f"/login"
+        # return response
 
     @app.get("/authenticated-route")
     async def authenticated_route(user: Users = Depends(current_active_user)):

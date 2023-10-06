@@ -3,7 +3,7 @@ from fastapi import Request
 
 from fastapi_users.authentication import CookieTransport, BearerTransport
 from starlette import status
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
 
 from app.common.config import config
 from app.common.consts import USER_AUTH_MAX_AGE

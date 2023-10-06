@@ -35,6 +35,8 @@
         3. discord 로그인
     - Discord bot 및 ipc server 생성 -> Discord bot dashboard 페이지 생성
        - `py-cord` 및 `ezcord` 패키지 사용
+    - template render용 redirect(next_url)가능한 `discord_callback` 구현
+
 
 
 - Todo

@@ -74,6 +74,8 @@ def update_query_string(url: str, **kwargs):
     # query_params['redirect_uri'] = [new_redirect_uri]
 
     for key, value in kwargs.items():
+        if value is None:
+            continue
         query_params[key] = [value]
     updated_query = urlencode(query_params, doseq=True)
 

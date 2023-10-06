@@ -54,7 +54,6 @@ class AccessControl(BaseHTTPMiddleware):
             # (2) service아닌 API or 템플릿 렌더링
             #  -> token 검사 후 (request 속 headers(서비스아닌api) or cookies(템플릿렌더링)) -> UserToken을 state.user에 담아 endpoint로
             elif await url_pattern_check(url, API_PATH_REGEX):
-                print('api접속')
                 request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
 
             #### 쿠기가 있어도, service(qs + headers -> user_token) /api접속(headers -> user_token)이 아닐시에만 -> 쿠키로그인(cookie -> route에서 주입user객체) 시에는 그냥 넘어간다.
@@ -123,7 +122,6 @@ class AccessControl(BaseHTTPMiddleware):
         # updated_password
         user_token_info = await decode_token(token)
         # user_token_info = cookie_backend.get_strategy().read_token(token, fastapi_users.get_user_manager)
-        print(f"user_token_info >> {user_token_info}")
 
         return UserToken(**user_token_info)
 

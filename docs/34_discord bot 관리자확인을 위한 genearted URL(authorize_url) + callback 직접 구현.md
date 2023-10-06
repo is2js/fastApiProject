@@ -250,7 +250,7 @@
             'request': request,  # 필수
             'count': guild_count.response,  # 커스텀 데이터
             'authorize_url': update_query_string(
-                config.DISCORD_AUTHORIZE_URL,
+                config.DISCORD_AUTHORIZATION_URL,
                 redirect_uri=config.DOMAIN + '/discord/callback'
             ),
         }

@@ -9,7 +9,7 @@ strong {
     color: #ea461e;
 }
 
-.btn-login {
+.btn-login, .btn-logout {
     background: #ea461e;
     border: 0;
     color: white;

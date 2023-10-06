@@ -1,11 +1,13 @@
 from typing import AsyncContextManager, Optional, List, Dict, cast, Any, Tuple
 
 import httpx
+from fastapi_users.router.oauth import generate_state_token
 from httpx_oauth.errors import GetIdEmailError
 from httpx_oauth.oauth2 import GetAccessTokenError, OAuth2Token
 
-from app.common.config import DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET
+from app.common.config import DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, JWT_SECRET, DISCORD_GENERATED_AUTHORIZATION_URL
 from app.errors.exceptions import GetOAuthProfileError
+from app.utils.auth_utils import update_query_string
 
 AUTHORIZE_ENDPOINT = "https://discord.com/api/oauth2/authorize"
 ACCESS_TOKEN_ENDPOINT = "https://discord.com/api/oauth2/token"
@@ -19,17 +21,17 @@ GUILD_ENDPOINT = PROFILE_ENDPOINT + '/guilds'
 class DiscordClient:
     client_id: str
     client_secret: str
-    scopes: Optional[List[str]]
+    authorization_url: str
     request_headers: Dict[str, str]
 
     access_token_endpoint: str
     refresh_token_endpoint: str
     revoke_token_endpoint: str
 
-    def __init__(self, client_id: str, client_secret: str, scopes: Optional[List[str]] = BASE_SCOPES):
+    def __init__(self, client_id: str, client_secret: str, authorization_url: str):
         self.client_id = client_id
         self.client_secret = client_secret
-        self.scopes = scopes
+        self.authorization_url = authorization_url
         self.request_headers = {
             "Accept": "application/json",
         }
@@ -39,7 +41,6 @@ class DiscordClient:
         self.revoke_token_endpoint = REVOKE_TOKEN_ENDPOINT
 
     async def get_access_token(self, code: str, redirect_uri: str):
-    # async def get_access_token(self, code: str):
         async with self.get_httpx_client() as client:
             data = {
                 "grant_type": "authorization_code",
@@ -56,8 +57,6 @@ class DiscordClient:
             )
 
             data = cast(Dict[str, Any], response.json())
-
-            print(f"ACCESS_TOKEN_ENDPOINT response data >> {data}")
 
             if response.status_code >= 400:
                 raise GetAccessTokenError(data)
@@ -116,5 +115,23 @@ class DiscordClient:
     def get_httpx_client() -> AsyncContextManager[httpx.AsyncClient]:
         return httpx.AsyncClient()
 
+    async def get_authorization_url(
+            self,
+            redirect_uri: str,
+            state_data: Dict[str, str] = None,
+    ) -> str:
 
-discord_client = DiscordClient(client_id=DISCORD_CLIENT_ID, client_secret=DISCORD_CLIENT_SECRET)
+        self.authorization_url = update_query_string(
+            self.authorization_url,
+            redirect_uri=redirect_uri,
+            state=generate_state_token(state_data, JWT_SECRET) if state_data else None
+        )
+
+        return self.authorization_url
+
+
+discord_client = DiscordClient(
+    client_id=DISCORD_CLIENT_ID,
+    client_secret=DISCORD_CLIENT_SECRET,
+    authorization_url=DISCORD_GENERATED_AUTHORIZATION_URL,
+)

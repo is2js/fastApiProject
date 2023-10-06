@@ -6,11 +6,13 @@ from httpx_oauth.clients.discord import DiscordOAuth2
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.kakao import KakaoOAuth2
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from app.common.config import JWT_SECRET
 from app.database.conn import db
 from app.libs.auth.backends.oauth import get_google_backends, get_kakao_backends, get_discord_backends
 from app.libs.auth.oauth_clients import get_oauth_clients
+from app.libs.discord.oauth_client import discord_client
 from app.models import Users, OAuthAccount
 from app.schemas import UserRead, UserCreate, UserUpdate
 from app.libs.auth.backends.base import get_auth_backends
@@ -74,7 +76,8 @@ def get_oauth_routers():
                         oauth_client=oauth_client,
                         backend=backend,
                         state_secret=JWT_SECRET,
-                        associate_by_email=True,
+                        associate_by_email=True,  # 이미 존재하는 email에 대해서 sns로그인시 oauth_account 정보 등록 허용(이미존재pass)
+                        is_verified_by_default=True,  # 추가: sns 로그인시, email인증 안하고도 이메일인증(is_verified) True 설정
                     )
                 })
 
@@ -86,7 +89,8 @@ def get_oauth_routers():
                         oauth_client=oauth_client,
                         backend=backend,
                         state_secret=JWT_SECRET,
-                        associate_by_email=True,
+                        associate_by_email=True,  # 이미 존재하는 email에 대해서 sns로그인시 oauth_account 정보 등록 허용(이미존재pass)
+                        is_verified_by_default=True,  # 추가: sns 로그인시, email인증 안하고도 이메일인증(is_verified) True 설정
                     )
                 })
 
@@ -98,7 +102,8 @@ def get_oauth_routers():
                         oauth_client=oauth_client,
                         backend=backend,
                         state_secret=JWT_SECRET,
-                        associate_by_email=True,
+                        associate_by_email=True,  # 이미 존재하는 email에 대해서 sns로그인시 oauth_account 정보 등록 허용(이미존재pass)
+                        is_verified_by_default=True,  # 추가: sns 로그인시, email인증 안하고도 이메일인증(is_verified) True 설정
                     )
                 })
 
@@ -113,3 +118,16 @@ optional_current_active_user = fastapi_users.current_user(
     active=True,
     optional=True,
 )
+
+
+# 템플릿용 인증안될 때, 템플릿 authorization_url 갔다오기
+async def discord_user(request: Request, user=Depends(optional_current_active_user)):
+    if not user:
+        authorization_url: str = await discord_client.get_authorization_url(
+            redirect_uri=str(request.url_for('discord_callback')),
+            state_data=dict(next=str(request.url))
+        )
+        from app import RedirectException
+        raise RedirectException(authorization_url)
+        # return RedirectResponse(authorization_url, status_code=302)
+    return user
