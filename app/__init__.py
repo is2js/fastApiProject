@@ -1,17 +1,15 @@
-import asyncio
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Depends
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import RedirectResponse
 from starlette.staticfiles import StaticFiles
 
 from app import api, pages
 from app.api.dependencies.auth import current_active_user
 from app.common.config import Config, DISCORD_BOT_TOKEN
 from app.database.conn import db
-from app.libs.discord.bot import discord_bot
+from app.libs.discord.bot.bot import discord_bot
+
 from app.middlewares.access_control import AccessControl
 from app.middlewares.trusted_hosts import TrustedHostMiddleware
 from app.models import Users
@@ -58,11 +56,11 @@ def create_app(config: Config):
     app.include_router(api.router, prefix='/api')
 
     # template용 discord auth 없이 접근시 redirect
-    @app.exception_handler(RedirectException)
-    async def login_required_exception_handler(request, exc):
-        print(f"exc.redirect_url >> {exc.redirect_url}")
-
-        return RedirectResponse(exc.redirect_url)
+    # @app.exception_handler(RedirectException)
+    # async def login_required_exception_handler(request, exc):
+    #     print(f"exc.redirect_url >> {exc.redirect_url}")
+    #
+    #     return RedirectResponse(exc.redirect_url)
         # if is_htmx(request):
         #     response.status_code = 200
         #     response.headers['HX-Redirect'] = f"/login"

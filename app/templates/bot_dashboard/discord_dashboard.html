@@ -21,11 +21,11 @@
 
 {% if user %}
 <p> Hey <strong>{{user.nickname}}</strong>, bot이 활동하는 디스코드 서버를 선택해주세요.</p>
-<button class="btn-logout" onclick="logout();return false;">로그아웃</button>
+<button class="btn-logout" onclick="logout(); return false;">로그아웃</button>
 {% else %}
-<a href="{{authorize_url}}">
-    <button class="btn-login">Login</button>
-</a>
+<!--<a href="{{authorize_url}}">-->
+<button class="btn-login" onclick="onClickOAuthLogin('discord')">Login</button>
+<!--</a>-->
 {% endif %}
 <!-- nav -->
 
@@ -36,59 +36,89 @@
 <!-- content -->
 
 
-
-
-
 <script>
     //유틸리티 시작
-
-    function fetchPost(url, data) {
+    function fetchPost(url, data = null) {
         return fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             },
-            body: JSON.stringify(data),
+            body: data ? JSON.stringify(data) : null,
         })
             .then(response => {
                 if (response.ok) {
                     return response.json();
                 } else {
-                    console.log(response.status)
+                    console.log(response.status);
                     return false;
                 }
-            })
+            }).catch((error) => {
+                console.error("Error:", error);
+            });
     }
 
-    function fetchGet(url, data) {
-        let query = Object.keys(data)
-            .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(data[k]))
-            .join('&');
+    function fetchGet(url, data = {}) {
+        let query = '';
+        if (Object.keys(data).length > 0) {
+            query = '?' + Object.keys(data)
+                .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(data[k]))
+                .join('&');
+        }
 
-        return fetch(url + "?" + query, {
+        return fetch(url + query, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             }
-        })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return false;
-                }
-            })
+        }).then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                console.log(response.status);
+                return false;
+            }
+        }).catch((error) => {
+            console.error("Error:", error);
+        });
     }
 
     //유틸리티 끝
+
+
+    const onClickOAuthLogin = (sns_type) => {
+        if (!sns_type) {
+            console.error('sns_type is required.');
+            return;
+        }
+        fetchGet('/auth/authorize/' + sns_type)
+            .then((response) => {
+                // console.log("response", response)
+                if (response && response.data && response.data.authorization_url) {
+                    // 1. template 라우트 -> sns_type별 authorization_url 반환
+                    let authorization_url = response.data.authorization_url;
+
+                    // 2. jinaj 필터를 이용해 state값을 붙이기
+                    authorization_url = authorization_url + '&state={{ request.url._url | encode_next_state }}';
+                    // console.log(authorization_url)
+                    window.location.href = authorization_url;
+                } else {
+                    console.log("Error: Failed to get authorization URL");
+                }
+            });
+    };
+
     function logout() {
+        // evt.preventDefault();
+        // evt.stopPropagation();
+
         // 로그아웃 버튼 클릭 이벤트 처리
-        let response = fetchPost('{{url_for("auth:cookie.logout")}}', {});
+        let response = fetchPost('{{url_for("auth:cookie.logout")}}');
         if (response) {
             alert('로그아웃 성공')
-            window.location.reload();
+            window.location.href = '/discord/dashboard';
         } else {
             alert('로그아웃 실패')
         }

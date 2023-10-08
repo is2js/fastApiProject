@@ -118,13 +118,16 @@ class DiscordClient:
     async def get_authorization_url(
             self,
             redirect_uri: str,
-            state_data: Dict[str, str] = None,
+            # state_data: Dict[str, str] = None,
+            state: Optional[str] = None,
     ) -> str:
+
 
         self.authorization_url = update_query_string(
             self.authorization_url,
             redirect_uri=redirect_uri,
-            state=generate_state_token(state_data, JWT_SECRET) if state_data else None
+            # state=encode_next_state(state_data, JWT_SECRET) if state_data else None
+            state=state
         )
 
         return self.authorization_url

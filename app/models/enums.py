@@ -15,6 +15,10 @@ class SnsType(str, Enum):
     KAKAO: str = "kakao"
     DISCORD: str = "discord"
 
+    @classmethod
+    def contains(cls, oauth_name):
+        return oauth_name in cls.__members__.values()
+
 
 class Gender(str, Enum):
     MALE = "male"

@@ -15,7 +15,7 @@ EXCEPT_PATH_LIST = ["/", "/openapi.json",
 # EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/auth)"
 # EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/v[0-9]+/auth)"
 # EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/v[0-9]+/auth|/static)"
-EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/v[0-9]+/auth|/static|/favicon.ico|/discord)"
+EXCEPT_PATH_REGEX = "^(/docs|/redoc|/api/v[0-9]+/auth|/auth|/static|/favicon.ico|/discord)"
 SERVICE_PATH_REGEX = "^(/api/v[0-9]+/services)"
 API_PATH_REGEX = "^(/api/v[0-9]+)"
 

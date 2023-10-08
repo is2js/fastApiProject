@@ -46,7 +46,7 @@
     from fastapi import APIRouter
     from starlette.requests import Request
     
-    from app.libs.discord.ipc_client import discord_ipc_client
+    from app.libs.discord.bot.ipc_client import discord_ipc_client
     from app.pages import templates
     
     router = APIRouter()

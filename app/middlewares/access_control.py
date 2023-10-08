@@ -33,13 +33,14 @@ class AccessControl(BaseHTTPMiddleware):
 
         try:
             # (1) token 검사(user정보) 없는 except_path -> endpoint로
-            if await url_pattern_check(url, EXCEPT_PATH_REGEX):
-                ...
-            elif url in EXCEPT_PATH_LIST:
-                ...
+            # if await url_pattern_check(url, EXCEPT_PATH_REGEX):
+            #     ...
+            # if url in EXCEPT_PATH_LIST:
+            #     ...
             # (3) services router들로 들어오면, headers(secret[key]) and querystring([access]key + timestamp)
             # ->  UserToken을 state.user에 담아 endpoint로
-            elif await url_pattern_check(url, SERVICE_PATH_REGEX):
+            if await url_pattern_check(url, SERVICE_PATH_REGEX):
+            # if await url_pattern_check(url, SERVICE_PATH_REGEX):
 
                 # (4) local(DEBUG=True) swagger로 qs + secret로는 swagger 테스트가 안되니,
                 # -> swagger에서 삽입한 Authorization으로 인증(user_token)하도록 non_service(headers-Authorization에 jwt access token)로 처리되게 한다.
@@ -53,15 +54,16 @@ class AccessControl(BaseHTTPMiddleware):
 
             # (2) service아닌 API or 템플릿 렌더링
             #  -> token 검사 후 (request 속 headers(서비스아닌api) or cookies(템플릿렌더링)) -> UserToken을 state.user에 담아 endpoint로
-            elif await url_pattern_check(url, API_PATH_REGEX):
+            # elif await url_pattern_check(url, API_PATH_REGEX):
+            elif not await url_pattern_check(url, '/api/v[0-9]+/auth') and await url_pattern_check(url, API_PATH_REGEX):
                 request.state.user = await self.extract_user_token_by_non_service(headers, cookies)
 
             #### 쿠기가 있어도, service(qs + headers -> user_token) /api접속(headers -> user_token)이 아닐시에만 -> 쿠키로그인(cookie -> route에서 주입user객체) 시에는 그냥 넘어간다.
-            elif "Authorization" in cookies.keys():
-                pass
-
-            else:
-                raise NotAuthorized()
+            # elif "Authorization" in cookies.keys():
+            #     pass
+            #
+            # else:
+            #     raise NotAuthorized()
 
             response = await call_next(request)
             # 응답 전 logging

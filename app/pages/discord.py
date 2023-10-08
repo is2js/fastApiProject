@@ -2,22 +2,25 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi_users import BaseUserManager, models
 from fastapi_users.exceptions import UserAlreadyExists
 from fastapi_users.router import ErrorCode
+from fastapi_users.router.oauth import generate_state_token
 from starlette import status
 from starlette.requests import Request
+
+from app.libs.discord.pages.route import DiscordRoute
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
-from app.libs.discord.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
+from app.libs.discord.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
 from app.models import Users
-from app.api.dependencies.auth import get_user_manager, optional_current_active_user, discord_user
-from app.common.config import DISCORD_GENERATED_AUTHORIZATION_URL
+from app.api.dependencies.auth import get_user_manager, optional_current_active_user, current_active_user
+from app.common.config import DISCORD_GENERATED_AUTHORIZATION_URL, JWT_SECRET
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
-from app.libs.discord.ipc_client import discord_ipc_client
-from app.libs.discord.oauth_client import discord_client
+from app.libs.discord.bot.ipc_client import discord_ipc_client
+from app.libs.discord.pages.oauth_client import discord_client
 from app.pages import templates
 from app.utils.auth_utils import update_query_string
 from app.utils.date_utils import D
 
-router = APIRouter()
+router = APIRouter(route_class=DiscordRoute)
 
 
 @router.get("/dashboard")
@@ -28,12 +31,14 @@ async def discord_dashboard(request: Request, user: Users = Depends(optional_cur
     # bot에 연결된 @server.route에 요청
     guild_count = await discord_ipc_client.request("guild_count")
 
+    state_data = dict(next=str(request.url))
+    state = generate_state_token(state_data, JWT_SECRET) if state_data else None
     context = {
         'request': request,  # 필수
         'count': guild_count.response,  # 커스텀 데이터
         'authorize_url': await discord_client.get_authorization_url(
             redirect_uri=str(request.url_for('discord_callback')),
-            state_data=dict(next=str(request.url)),
+            state=state,
         ),
         'user': user,  # None or user
     }
@@ -58,33 +63,11 @@ async def discord_callback(
     """
     oauth2_token, next_url = access_token_and_next_url
 
-    # print(f"state >> {state}")
-    # decode_jwt(state, JWT_SECRET, [STATE_TOKEN_AUDIENCE])
-    # decode state >> {'next': 'http://localhost:8001/discord/dashboard', 'aud': 'fastapi-users:oauth-state', 'exp': 1696493515}
-
-    # 1. 받은 code 및 redirect_url로 OAuth2Token (dict wrapping 객체)을 응답받는다.
-    # oauth2_token: OAuth2Token = await discord_client.get_access_token(
-    #     code=code,
-    #     redirect_uri=request.url_for('discord_callback'),  # 콜백라우터지만, access_token요청시 자신의 url을 한번 더 보내줘야한다.
-    # )
 
     # 2. 응답받은 oauth2_token객체로 만료를 확인하고
     if oauth2_token.is_expired():
         raise TokenExpiredException()
-    # {
-    # 'token_type': 'Bearer',
-    # 'access_token': 'zv9SHN0TGA5lwxxx',
-    # 'expires_in': 604800,
-    # 'refresh_token': 'p8XpO6fCAykjxxxx',
-    # 'scope': 'identify guilds email', '
-    # expires_at': 1696919521
-    # }
 
-    # 4. 받은 token으로 1) profile_info -> 2) user DB -> oauth_account DB 등록
-    # venv/Lib/site-packages/httpx_oauth/clients/discord.py
-
-    # 4-2. httx_oauth의 각 oauth client에서 공통으로 사용하는 메서드
-    # - venv/Lib/site-packages/httpx_oauth/clients/discord.py
     account_id, account_email = await discord_client.get_id_email(oauth2_token["access_token"])
 
     # 4-1. fastapi-users callback route 로직
@@ -161,10 +144,10 @@ async def discord_callback(
     return response
 
 
-# async def guilds(request: Request, user: Users = Depends(current_active_user)):
 @router.get("/guilds")
-# async def guilds(request: Request, user: Users = Depends(optional_current_active_user)):
-async def guilds(request: Request, user: Users = Depends(discord_user)):
+async def guilds(request: Request, user: Users = Depends(optional_current_active_user)):
+# async def guilds(request: Request, user: Users = Depends(current_active_user)):
+    # async def guilds(request: Request, user: Users = Depends(discord_user)):
     # if not user:
     #     authorization_url = await discord_client.get_authorization_url(
     #         redirect_uri=str(request.url_for('discord_callback')),

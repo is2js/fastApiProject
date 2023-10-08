@@ -392,6 +392,102 @@ async def discord_dashboard(request: Request, user: Users = Depends(optional_cur
         oauth2_token, next_url = access_token_and_next_url
         #...
     ```
+   
+### CustomAPIRoute with error_handler
+
+#### app에만 있는 error_handler를 CustomAPIRoute 구현으로 특정route의 401에러를 잡아 redirect
+- 참고: [how to use customer exception handler by APIRouter? #1667](https://github.com/tiangolo/fastapi/issues/1667)
+1. **@app.error_handler(특정에러) -> 로그인 요구 router에서 user: Users = Depends(current_active_user)시 로그인 에러 -> 401에러 -> 인증화면(authorization_url)로 redirect를 쓰려고 했다.**
+2. 하지만, **`pages의 discord관련 route에서만` 잡고 싶었다. 그렇지 않다면, 특정 exception을 생성하고 -> @app.error_handler에서 해당 exception만 잡아서 처리하면 되었다.**
+    - raise RedirectExcept(redirect_url) -> 해당 error 시 redirect
+3. **discord로그인 관련, 정보 route들만 처리되면 되므로, 특정Route에서 error_handler를 대신하는 방법은**
+    1. APIRoute를 상속한 route custom class를 정의한다.
+    2. `get_route_handler`를 재정의한 뒤, `super().get_route_handler()`를 통해, callable 원본 router handler객체를 반환 받고
+    3. get_route_handler 메서드 내부에서 `async def custom_route_handler`를 재정의하는데
+    4. try: 그냥 돌려보내주고, except 에러를 잡는데, 특정에러 발생시 특정처리 후 `return response`를 만들어서 반환해준다.
+    5. **해당 route를 APIRouter(route_class=)객체 생성시 `route_class=`옵션으로 넣어준다.**
+    ```python
+    class DiscordRoute(APIRoute):
+        
+        def get_route_handler(self) -> Callable:
+            original_route_handler = super().get_route_handler()
+            
+            async def custom_route_handler(request: Request) -> Response:
+                app = request.app
+                try:
+                    return await original_route_handler(request)
+                except Exception as exc:
+                    # 특정에러 확인
+                    # 특정에러시 처리
+            return custom_route_handler
+    ```
+    ```python
+    # app/pages/discord.py
+    router = APIRouter(route_class=DiscordRoute)
+    ```
+
+#### 로그인요구 route가 포함된 router객체에서 401에러시 authorization_url로 redirect처리를 해줄 CustomRouter 정의하기
+1. libs > discord > 에 bot용 파일을 /bot 폴더에, pages전용으로서 `pages`패키지안에 route.py를 생성하여 custom route인 `DiscordRoute`를 정의한다.
+    - **이 때, `custom_route_handler`를 정의하는데, 다른 exception외에 `HTTPException`이면서, `401 권한에러`가 뜨면**
+    - **discord_client로 현재route요청 url인 `request.url`을 str()으로 state_data에 넣은 authorizaion_url을 생성하여 redireect시킨다.**
+    ```python
+    # app/libs/discord/pages/route.py
+    from typing import Callable
+    
+    from fastapi import HTTPException
+    from fastapi.routing import APIRoute
+    from starlette import status
+    from starlette.requests import Request
+    from starlette.responses import Response, RedirectResponse
+    
+    from app.libs.discord.pages.oauth_client import discord_client
+    
+    class DiscordRoute(APIRoute):
+        def get_route_handler(self) -> Callable:
+            original_route_handler = super().get_route_handler()
+            async def custom_route_handler(request: Request) -> Response:
+                app = request.app
+                try:
+                    return await original_route_handler(request)
+                except Exception as e:
+                    if isinstance(e, HTTPException) and e.status_code == status.HTTP_401_UNAUTHORIZED:
+                        authorization_url: str = await discord_client.get_authorization_url(
+                            redirect_uri=str(request.url_for('discord_callback')),
+                            state_data=dict(next=str(request.url))
+                        )
+                        return RedirectResponse(authorization_url)
+    
+                    raise e
+    
+    
+            return custom_route_handler
+    ```
+   
+2. 이제 pages > discord.py의 router 객체에 `route_class=`를 넣어줘서, 커스텀 error_handler(`custom_route_handler`)가 해당 route에만 작동할 수 있게 한다.
+    ```python
+    # app/pages/discord.py
+    router = APIRouter(route_class=DiscordRoute)
+    ```
+   
+3. **로그인이 요구되는 `/guilds` 페이지에는 optional_current_active_user가 아닌 `current_active_user`를 주입하고, 로그인 안될시 내부에서 401에러가 발생하는데, 그것을 잡아서 redirect되게 한다.**
+    ```python
+    @router.get("/guilds")
+    # async def guilds(request: Request, user: Users = Depends(optional_current_active_user)):
+    async def guilds(request: Request, user: Users = Depends(current_active_user)):
+        #...
+    ```
+   
+4. 이제 /discord/guilds에 접속하면 로그인안됬으므로 자동으로 디스코드 로그인페이지로 이동후, 다시 state=에 적힌 요청route /discord/guilds로 돌아오게 된다.
+5. **문제는 logout시 현재페이지로 로그아웃되는데, 또 로그인 안된 상태라, 디스코드 로그인 화면으로 간다.**
+    - **`로그아웃`시 `비로그인 허용`route인 `/index`페이지가 필요하다.**
+    - 기존의 /dashboard 대신, home이 필요하긴 한 것 같다.
+    - **또한, 추후, 여러 로그인이 필요한 곳을 위해, /login 페이지도 필요한 것 같다.**
+
+
+#### dashboard를 base.html로 취급한, guilds.html
+```python
+
+```
 ### 도커 명령어
 
 1. (`패키지 설치`시) `pip freeze` 후 `api 재실행`
