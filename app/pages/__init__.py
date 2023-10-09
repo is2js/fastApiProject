@@ -1,7 +1,9 @@
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from starlette.templating import Jinja2Templates
+from app.api.dependencies.auth import request_with_fastapi_optional_user, \
+    request_with_fastapi_optional_user_and_bot_guild_count
 
 from .exceptions import RedirectException
 from ..templates.filters.oauth import encode_next_state
@@ -17,6 +19,11 @@ templates.env.filters["encode_next_state"] = encode_next_state
 
 from . import index, discord
 
-router = APIRouter()
+router = APIRouter(
+    dependencies=[Depends(request_with_fastapi_optional_user)]
+)
 router.include_router(index.router, tags=['Pages'])
-router.include_router(discord.router, prefix='/discord', tags=['Pages'])
+router.include_router(discord.router, prefix='/discord', tags=['Pages'],
+                      dependencies=[Depends(request_with_fastapi_optional_user_and_bot_guild_count)]
+
+                      )

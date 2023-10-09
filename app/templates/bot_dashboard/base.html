@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <!-- css -->
+
+    <!-- css-self -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='css/bootstrap.css') }}?v=5.3.0">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', path='css/style.css') }}?v=0.1.0">
+    <!-- head_js -->
+    {% block head_js %}{% endblock head_js %}
+    <!-- title -->
+    <title>{% block title %}BOT DASHBOARD{% endblock %}</title>
+</head>
+
+<body>
+<!-- nav -->
+{% include 'bot_dashboard/snippets/nav.html' %}
+<!-- nav -->
+
+<!-- content -->
+<div class="container-fluid mt-3">
+    <h3>서버 Bot은 <strong>{{ bot_guild_count }}</strong>개의 server에서 활동하고 있습니다.</h3>
+    {% block content %} base {% endblock content %}
+</div>
+<!-- content -->
+
+<!-- body_js -->
+<!-- js-library -->
+<script src="https://unpkg.com/htmx.org@1.6.1"
+        integrity="sha384-tvG/2mnCFmGQzYC1Oh3qxQ7CkQ9kMzYjWZSNtrRZygHPDDqottzEJsqS4oUVodhW"
+        crossorigin="anonymous"></script>
+<script src="{{ url_for('static', path='js/jquery.js') }}?v=3.6.0"></script>
+<script src="{{ url_for('static', path='js/bootstrap.bundle.js') }}?v=5.3.0"></script>
+<!-- js-fetch -->
+<script src="{{ url_for('static', path='js/fetch.js') }}?v=0.1.0"></script>
+<!-- js-login -->
+<script>
+    const onClickOAuthLogin = (sns_type) => {
+        if (!sns_type) {
+            console.error('sns_type is required.');
+            return;
+        }
+        fetchGet('/auth/authorize/' + sns_type)
+            .then((response) => {
+                // console.log("response", response)
+                if (response && response.data && response.data.authorization_url) {
+                    // 1. template 라우트 -> sns_type별 authorization_url 반환
+                    let authorization_url = response.data.authorization_url;
+
+                    // 2. jinaj 필터를 이용해 state값을 붙이기
+                    authorization_url = authorization_url + '&state={{ request.url._url | encode_next_state }}';
+                    // console.log(authorization_url)
+                    window.location.href = authorization_url;
+                } else {
+                    console.log("Error: Failed to get authorization URL");
+                }
+            });
+    };
+
+    function logout() {
+        // 로그아웃 버튼 클릭 이벤트 처리
+        fetchPost('{{url_for("auth:cookie.logout")}}')
+            .then((response) => {
+                if (response) {
+                    window.location.href = '{{url_for("discord_home")}}';
+                } else {
+                    console.log("response error");
+                }
+            })
+    }
+</script>
+
+{% block body_js %}{% endblock body_js %}
+</body>
+</html>

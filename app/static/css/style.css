@@ -1,21 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@500&family=Noto+Serif+KR:wght@500&display=swap');
+@import url(https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/nanumsquare.css);
+
+:root {
+    --primary-font-family: 'Noto Sans KR', sans-serif;
+    --secondary-font-family: 'Noto Serif KR', sans-serif;
+    --third-font-family: 'NanumSquare', sans-serif;
+
+    --color-main: #00b5b2;
+    --color-main-light: #5bd2cc;
+    --color-main-dark: #50ccc7; /* for 둘러보기 배경색 + 클리닉 치료법 글자색 */
+    --color-main-darker: #05736d; /* for 모바일 2차메뉴 */
+    --color-submain: #FC5230;
+
+    --color-schedule: #a9cccb;
+
+    --color-pink: #F07F7F;
+    --color-purple: #ab8dca;
+    --color-green: #80BA96;
+    --color-youtube: #f63232;
+    --color-naver: #0eca8b;
+    --color-yellow-gold: #cc820b;
+    --color-gold: #CEA869;
+    --color-gold-dark: #ad8b51;
+    --color-gray-light: #343A3FBF;
+    --color-gray-darker: #212529BF;
+
+    --color-kakao-yellow: #fee500;
+}
+
 body {
     background: #222727;
     color: #d8d8d8;
     text-align: center;
-    font-family: Verdana, sans-serif;
+    /*font-family: Verdana, sans-serif;*/
+    font-family: 'NanumSquare', 'Noto Sans KR', 'Malgun Gothic', 'Nanum Gothic', 'Noto Sans', 'sans-serif';
 }
 
 strong {
     color: #ea461e;
 }
 
-.btn-login, .btn-logout {
-    background: #ea461e;
-    border: 0;
-    color: white;
-    padding: 12px 48px;
-    font-size: 18px;
-    margin-top: 8px;
-    border-radius: 8px;
-    cursor: pointer;
+.btn-auth {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #FC5230;
+    --bs-btn-border-color: #FC5230;
+
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #F07F7F;
+    --bs-btn-hover-border-color:#F07F7F;
+    --bs-btn-focus-shadow-rgb: #FC5230;
+
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #F07F7F;
+    --bs-btn-active-border-color: #F07F7F;
+    --bs-btn-active-shadow: inset 0 3px 5px #FC5230;
+
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #FC5230;
+    --bs-btn-disabled-border-color: #FC5230;
 }
+
+/*.btn-login, .btn-logout {*/
+/*    background: #ea461e;*/
+/*    border: 0;*/
+/*    color: white;*/
+/*    padding: 12px 48px;*/
+/*    font-size: 18px;*/
+/*    margin-top: 8px;*/
+/*    border-radius: 8px;*/
+/*    cursor: pointer;*/
+/*}*/

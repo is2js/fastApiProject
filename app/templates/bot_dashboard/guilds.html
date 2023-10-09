@@ -1,14 +1,9 @@
-{% extends "bot_dashboard/discord_dashboard.html" %}
+{% extends "bot_dashboard/base.html" %}
 
-{% block title %}
-Guilds | {{super()}}
-{% endblock title %}
+{% block title %} Guilds | {{super()}} {% endblock title %}
 
 {% block content %}
-<h3>bot은 <strong>{{bot_guild_count}}</strong>개의 server에서 활동하고 있습니다.</h3>
-
-<h1>{{request.base_url}} {{request.path}} {{request.url}} {{request.url._url}}</h1>
-
+{#<h1>{{request.base_url}} {{request.path}} {{request.url}} {{request.url._url}}</h1>#}
 <div class="container">
     {% for guild in user_guilds %}
     <div class="item">

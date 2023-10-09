@@ -6,6 +6,7 @@ from httpx_oauth.clients.discord import DiscordOAuth2
 from httpx_oauth.clients.google import GoogleOAuth2
 from httpx_oauth.clients.kakao import KakaoOAuth2
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
 
 from app.common.config import JWT_SECRET
 from app.database.conn import db
@@ -129,3 +130,28 @@ optional_current_active_user = fastapi_users.current_user(
 #         raise RedirectException(authorization_url)
 #         # return RedirectResponse(authorization_url, status_code=302)
 #     return user
+
+
+##############
+# Template용 # - base.html에서 매번 사용되어야하는
+##############
+async def request_with_fastapi_optional_user(request: Request, user=Depends(optional_current_active_user)) -> Request:
+    request.state.user = user
+    return request
+
+
+# template + discord dashboard용
+from app.libs.discord.bot.ipc_client import discord_ipc_client
+
+
+async def request_with_fastapi_optional_user_and_bot_guild_count(
+        request: Request, user=Depends(optional_current_active_user)
+) -> Request:
+
+    request.state.user = user
+
+    server_response = await discord_ipc_client.request("guild_count")
+    # <ServerResponse response=1 status=OK>
+    request.state.bot_guild_count = server_response.response
+
+    return request

@@ -106,6 +106,10 @@ class AccessControl(BaseHTTPMiddleware):
         ip = request.headers["x-forwarded-for"] if "x-forwarded-for" in request.headers.keys() else request.client.host
         request.state.ip = ip.split(",")[0] if "," in ip else ip
 
+        # template route dependencies
+        request.state.user = None
+        request.state.bot_guild_count = None
+
     @staticmethod
     async def extract_user_token_by_non_service(headers: Headers, cookies: dict[str, str]):
         # [1] api 접속 -> headers에 token정보

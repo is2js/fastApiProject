@@ -112,7 +112,6 @@ async def template_oauth_callback(
         # code: str,
         # state: Optional[str] = None,
         sns_type: SnsType,
-        # sns_type: SnsType = Path(...),
         # 인증서버가 돌아올떄 주는 code와 state + sns_type까지 내부에서 받아 처리
         access_token_and_next_url: OAuthAuthorizeCallback = Depends(
             get_oauth_callback(route_name='template_oauth_callback')
@@ -167,9 +166,7 @@ async def template_oauth_callback(
     jwt_strategy = get_jwt_strategy()
     user_token_for_cookie = await jwt_strategy.write_token(user)
     cookie_redirect_transport = get_cookie_redirect_transport(
-        # redirect_url=request.url_for('guilds')  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
         redirect_url=next_url  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
-        # redirect_url=request.url_for('discord_dashboard')  # 로그인 성공 후 cookie정보를 가지고 돌아갈 곳.
     )
     response = await cookie_redirect_transport.get_login_response(user_token_for_cookie)
 
