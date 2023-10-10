@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from app import api, pages
+from app import api
 from app.api.dependencies.auth import current_active_user, request_with_fastapi_optional_user
 from app.common.config import Config, DISCORD_BOT_TOKEN
 from app.database.conn import db

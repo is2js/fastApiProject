@@ -47,7 +47,7 @@ strong {
 
     --bs-btn-hover-color: #fff;
     --bs-btn-hover-bg: #F07F7F;
-    --bs-btn-hover-border-color:#F07F7F;
+    --bs-btn-hover-border-color: #F07F7F;
     --bs-btn-focus-shadow-rgb: #FC5230;
 
     --bs-btn-active-color: #fff;
@@ -60,13 +60,19 @@ strong {
     --bs-btn-disabled-border-color: #FC5230;
 }
 
-/*.btn-login, .btn-logout {*/
-/*    background: #ea461e;*/
-/*    border: 0;*/
-/*    color: white;*/
-/*    padding: 12px 48px;*/
-/*    font-size: 18px;*/
-/*    margin-top: 8px;*/
-/*    border-radius: 8px;*/
-/*    cursor: pointer;*/
-/*}*/
+
+.guild-item {
+    background-color: #3a4242;
+    height: 85px;
+    font-size: 1.5rem;
+    overflow: hidden;
+}
+
+.guild-item > p {
+    font-size: 75%;
+}
+
+.guild-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 .2rem .5rem rgba(0, 0, 0, 0.3), 0 1rem .5rem rgba(0, 0, 0, 0.22)
+}

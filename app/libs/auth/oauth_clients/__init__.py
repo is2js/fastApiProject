@@ -45,4 +45,5 @@ def get_oauth_client(sns_type: SnsType):
     if sns_type == SnsType.KAKAO:
         if not (KAKAO_CLIENT_ID and KAKAO_CLIENT_SECRET):
             raise Exception('환경 변수에 KAKAO ID, SECRET 설정이 안되었습니다.')
+
         return get_kakao_client()

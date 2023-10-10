@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends
 from fastapi.params import Query
 from fastapi_users import BaseUserManager, models
 from fastapi_users.exceptions import UserAlreadyExists
@@ -11,16 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 from starlette.exceptions import HTTPException
 from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse
+from starlette.responses import Response
 
 from app.api.dependencies.auth import get_user_manager
 from app.database.conn import db
 from app.errors.exceptions import NoSupportException, TokenExpiredException, OAuthProfileUpdateFailException
-from app.libs.auth.oauth_clients import get_discord_client, get_oauth_client
+from app.libs.auth.oauth_clients import get_oauth_client
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
-from app.libs.discord.pages.oauth_callback import get_oauth_callback, OAuthAuthorizeCallback
-from app.libs.discord.pages.oauth_client import discord_client
+from app.pages.oauth_callback import get_oauth_callback, OAuthAuthorizeCallback
 from app.models import Users, SnsType
 from app.utils.date_utils import D
 
@@ -118,7 +117,6 @@ async def template_oauth_callback(
         ),
         user_manager: BaseUserManager[models.UP, models.ID] = Depends(get_user_manager),
 ):
-
     """
     `Discord callback for Developer OAuth Generated URL`
     """
@@ -126,7 +124,10 @@ async def template_oauth_callback(
 
     if oauth2_token.is_expired():
         raise TokenExpiredException()
-    account_id, account_email = await discord_client.get_id_email(oauth2_token["access_token"])
+
+    # account_id, account_email = await discord_client.get_id_email(oauth2_token["access_token"])
+    oauth_client = get_oauth_client(sns_type)
+    account_id, account_email = await oauth_client.get_id_email(oauth2_token["access_token"])
 
     try:
         user = await user_manager.oauth_callback(
@@ -153,13 +154,14 @@ async def template_oauth_callback(
             detail=ErrorCode.LOGIN_BAD_CREDENTIALS,
         )
     try:
-        if profile_info := await discord_client.get_profile_info(oauth2_token["access_token"]):
+        if profile_info := await oauth_client.get_profile_info(oauth2_token["access_token"]):
             await user.update(
                 auto_commit=True,
                 **profile_info,
                 sns_type='discord',
                 last_seen=D.datetime(),  # on_after_login에 정의된 로직도 가져옴
             )
+
     except Exception as e:
         raise OAuthProfileUpdateFailException(obj=user, exception=e)
 

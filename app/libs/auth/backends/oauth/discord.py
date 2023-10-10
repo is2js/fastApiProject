@@ -42,7 +42,8 @@ class DiscordBackend(OAuthBackend):
 
             data = cast(Dict[str, Any], response.json())
             if avatar_hash := data.get('avatar'):
-                profile_dict['profile_img'] = f"https://cdn.discordapp.com/avatars/{data['id']}/{avatar_hash}.png"
+                # profile_dict['profile_img'] = f"https://cdn.discordapp.com/avatars/{data['id']}/{avatar_hash}.png"
+                profile_dict['profile_img'] = f"https://cdn.discordapp.com/avatars/{data['id']}/{avatar_hash}"
             if nickname := data.get('global_name'):
                 profile_dict['nickname'] = nickname
 

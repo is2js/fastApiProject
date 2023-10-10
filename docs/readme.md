@@ -35,7 +35,8 @@
         3. discord 로그인
     - Discord bot 및 ipc server 생성 -> Discord bot dashboard 페이지 생성
        - `py-cord` 및 `ezcord` 패키지 사용
-    - template render용 oauth redirect(next=)가능한  jinja filter 및 oauth callback route 구현
+    - template render용 oauth redirect(next=) 가능한 state= 인코딩 jinja filter 및 oauth callback route 구현
+       - template render전용 디펜던시, 메서드 구현. 
 
 
 

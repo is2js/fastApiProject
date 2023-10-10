@@ -10,18 +10,17 @@ from starlette.requests import Request
 
 from app.common.config import JWT_SECRET
 from app.libs.auth.oauth_clients import get_oauth_client
-from app.libs.discord.pages.oauth_client import DiscordClient, discord_client
 from app.models import SnsType
 
 
 class DiscordAuthorizeCallback:
-    client: DiscordClient  # BaseOAuth2
+    client: BaseOAuth2  # BaseOAuth2
     route_name: Optional[str]
     redirect_url: Optional[str]
 
     def __init__(
             self,
-            client: DiscordClient,
+            client: BaseOAuth2,
             route_name: Optional[str] = None,
             redirect_url: Optional[str] = None,
     ):
@@ -73,7 +72,8 @@ class DiscordAuthorizeCallback:
 
 def get_discord_callback(redirect_url: Optional[str] = None, route_name: Optional[str] = None):
     return DiscordAuthorizeCallback(
-        discord_client,  # client_id, secret + authorization_url 기본 포함. -> access_token을 받아냄.
+        # discord_client,  # client_id, secret + authorization_url 기본 포함. -> access_token을 받아냄.
+        get_oauth_client(SnsType.DISCORD),  # client_id, secret + authorization_url 기본 포함. -> access_token을 받아냄.
         redirect_url=redirect_url,  # 2개 중 1개로 client가 access_token요청시 필요한 redirect_uri을 만듦
         route_name=route_name,
     )

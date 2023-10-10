@@ -23,7 +23,7 @@
 
 <!-- content -->
 <div class="container-fluid mt-3">
-    <h3>서버 Bot은 <strong>{{ bot_guild_count }}</strong>개의 server에서 활동하고 있습니다.</h3>
+    <h4 class="h4 mb-4">서버 Bot은 <strong>{{ bot_guild_count }}</strong>개의 server에서 활동하고 있습니다.</h4>
     {% block content %} base {% endblock content %}
 </div>
 <!-- content -->
@@ -51,8 +51,16 @@
                     // 1. template 라우트 -> sns_type별 authorization_url 반환
                     let authorization_url = response.data.authorization_url;
 
-                    // 2. jinaj 필터를 이용해 state값을 붙이기
-                    authorization_url = authorization_url + '&state={{ request.url._url | encode_next_state }}';
+                    // 2. jinja 필터를 이용해 state값을 붙이기
+                    // 2-1. 로그인요구 route에서 돌아온 상태: ?next=를 달고 오니, 이것을 state에 jwt encode
+                    {% if 'next' in request.query_params %}
+                        {% set next_url = request.query_params.next %}
+                    {% else %}
+                    // 2-2. 만약, 그냥 로그인/비로그인 허용(base-nav)라면, 현재url을 state에 wjt encoding
+                        {% set next_url = request.url._url %}
+                    {% endif %}
+
+                    authorization_url = authorization_url + '&state={{ next_url | encode_next_state }}';
                     // console.log(authorization_url)
                     window.location.href = authorization_url;
                 } else {

@@ -8,7 +8,8 @@ from starlette.requests import Request
 from starlette.responses import Response, RedirectResponse
 
 from app.common.config import JWT_SECRET
-from app.libs.discord.pages.oauth_client import discord_client
+from app.libs.auth.oauth_clients import get_oauth_client
+from app.models import SnsType
 
 
 # from prometheus_client import Counter
@@ -29,7 +30,8 @@ class DiscordRoute(APIRoute):
                     state_data = dict(next=str(request.url))
                     state = generate_state_token(state_data, JWT_SECRET) if state_data else None
 
-                    authorization_url: str = await discord_client.get_authorization_url(
+                    oauth_client = get_oauth_client(SnsType.DISCORD)
+                    authorization_url: str = await oauth_client.get_authorization_url(
                         redirect_uri=str(request.url_for('discord_callback')),
                         state=state
                     )

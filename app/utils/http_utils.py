@@ -4,7 +4,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, HTMLResponse
 
 from app.common.config import config
-from app.pages import templates
+from app.pages.routers import templates
 
 
 class CustomJSONResponse(JSONResponse):

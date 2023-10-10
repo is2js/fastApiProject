@@ -1,15 +1,21 @@
 {% extends "bot_dashboard/base.html" %}
 
-{% block title %} Guilds | {{super()}} {% endblock title %}
+{% block title %} Guilds | {{ super() }} {% endblock title %}
 
 {% block content %}
-{#<h1>{{request.base_url}} {{request.path}} {{request.url}} {{request.url._url}}</h1>#}
-<div class="container">
-    {% for guild in user_guilds %}
-    <div class="item">
-        <img class="title" src="https://cdn.discordapp.com/embed/avatars/0.png">
-        <p class="title"><b>{{ guild.name }}</b></p>
+    {#<h1>{{request.base_url}} {{request.path}} {{request.url}} {{request.url._url}}</h1>#}
+    <h6 class="h6 text-white text-center">내 서버 목록 ({{ user_guilds | count }})</h6>
+    <div class="row px-3 row-gap-3">
+        {% for guild in user_guilds %}
+            <div class="col-sm-12 col-md-6 col-lg-4">
+                <div class="guild-item px-2 d-flex justify-content-center align-items-center rounded-3">
+                    {#<img class="me-3 h-75 rounded" src="https://cdn.discordapp.com/embed/avatars/0.png">#}
+                    <img class="me-3 h-75 rounded" src="{{ guild.icon }}">
+                    <p class="m-0 h-75 d-flex align-items-center">
+                        <b>{{ guild.name }}</b>
+                    </p>
+                </div>
+            </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-</div>
 {% endblock content %}

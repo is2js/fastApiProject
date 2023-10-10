@@ -1,5 +1,3 @@
-from typing import Dict
-
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi_users import BaseUserManager, models
 from fastapi_users.exceptions import UserAlreadyExists
@@ -7,22 +5,19 @@ from fastapi_users.router import ErrorCode
 from starlette import status
 from starlette.requests import Request
 
-from app.libs.discord.pages.route import DiscordRoute
+from app.libs.auth.oauth_clients import get_oauth_client
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
-from app.libs.discord.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
-from app.models import Users
-from app.api.dependencies.auth import get_user_manager, optional_current_active_user, request_with_fastapi_optional_user
-from app.common.config import DISCORD_GENERATED_AUTHORIZATION_URL
+from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
+from app.models import SnsType
+from app.api.dependencies.auth import get_user_manager
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
-from app.libs.discord.bot.ipc_client import discord_ipc_client
-from app.libs.discord.pages.oauth_client import discord_client
-from app.pages import templates
-from app.utils.auth_utils import update_query_string
+from app.pages.decorators import oauth_login_required
 from app.utils.date_utils import D
 from app.utils.http_utils import render
 
-router = APIRouter(route_class=DiscordRoute)
+# router = APIRouter(route_class=DiscordRoute)
+router = APIRouter()
 
 
 # async def discord_home(request: Request, user: Users = Depends(optional_current_active_user)):
@@ -40,6 +35,32 @@ async def discord_home(request: Request):
     # )
     #
     return render(request, "bot_dashboard/home.html")
+
+
+@router.get("/guilds")
+@oauth_login_required(SnsType.DISCORD)
+async def guilds(request: Request):
+    access_token = request.state.user.get_oauth_access_token('discord')
+
+    oauth_client = get_oauth_client(SnsType.DISCORD)
+    user_guilds = await oauth_client.get_guilds(access_token)
+    # https://discord.com/developers/docs/resources/user#get-current-user-guilds
+
+    for guild in user_guilds:
+        if guild.get('icon', None):
+            guild['icon'] = 'https://cdn.discordapp.com/icons/' + guild['id'] + '/' + guild['icon']
+        else:
+            guild['icon'] = 'https://cdn.discordapp.com/embed/avatars/0.png'
+
+    context = {
+        'user_guilds': user_guilds,
+    }
+
+    return render(
+        request,
+        "bot_dashboard/guilds.html",
+        context=context
+    )
 
 
 @router.get("/callback", name='discord_callback')
@@ -61,7 +82,8 @@ async def discord_callback(
     if oauth2_token.is_expired():
         raise TokenExpiredException()
 
-    account_id, account_email = await discord_client.get_id_email(oauth2_token["access_token"])
+    oauth_client = get_oauth_client(SnsType.DISCORD)
+    account_id, account_email = await oauth_client.get_id_email(oauth2_token["access_token"])
 
     # 4-1. fastapi-users callback route 로직
     # - venv/Lib/site-packages/fastapi_users/router/oauth.py
@@ -94,7 +116,8 @@ async def discord_callback(
     # 4-3. backend에서 oauth_client에서 못가져온 추가정보 가져오는 로직도 추가한다.
     # - app/libs/auth/backends/oauth/discord.py
     try:
-        if profile_info := await discord_client.get_profile_info(oauth2_token["access_token"]):
+        oauth_client = get_oauth_client(SnsType.DISCORD)
+        if profile_info := await oauth_client.get_profile_info(oauth2_token["access_token"]):
             await user.update(
                 auto_commit=True,
                 **profile_info,
@@ -135,59 +158,3 @@ async def discord_callback(
     response = await cookie_redirect_transport.get_login_response(user_token_for_cookie)
 
     return response
-
-
-@router.get("/guilds")
-async def guilds(request: Request, user: Users = Depends(optional_current_active_user)):
-    # async def guilds(request: Request, user: Users = Depends(current_active_user)):
-    # async def guilds(request: Request, user: Users = Depends(discord_user)):
-    # if not user:
-    #     authorization_url = await discord_client.get_authorization_url(
-    #         redirect_uri=str(request.url_for('discord_callback')),
-    #         state_data=dict(next=str(request.url)),
-    #     )
-    #     return RedirectResponse(authorization_url, status_code=302)
-
-    user_guilds: list = []
-    if user:
-        access_token = user.get_oauth_access_token('discord')
-        user_guilds = await discord_client.get_guilds(access_token)
-        # middel웨어없이 bot ipc통신이라 data 형식이 아니게 됨.
-        # user_guilds  >> [{'id': '1156511536316174368', 'name': '한의원 인증앱', 'icon': None, 'owner': True, 'permissions': 2147483647, 'permissions_new': '562949953421311', 'features': []}]
-
-    bot_guild_count = await discord_ipc_client.request("guild_count")
-
-    #     "data":{
-    #         "guilds":[
-    #             {
-    #                 "id":"1156511536316174368",
-    #                 "name":"한의원 인증앱",
-    #                 "icon":null,
-    #                 "owner":true,
-    #                 "permissions":xxx,
-    #                 "permissions_new":"xxxx",
-    #                 "features":[
-    #                 ]
-    #             }
-    #         ]
-    #     },
-    #     "version":"1.0.0"
-    # }
-    # return dict(guilds=guilds)
-    context = {
-        'request': request,
-        'user': user,
-        'bot_guild_count': bot_guild_count.response,  # 커스텀 데이터
-
-        'authorize_url': update_query_string(
-            DISCORD_GENERATED_AUTHORIZATION_URL,
-            # redirect_uri=config.DOMAIN + '/discord/callback'
-            redirect_uri=request.url_for('discord_callback')
-        ),
-
-        'user_guilds': user_guilds,
-    }
-    return templates.TemplateResponse(
-        "bot_dashboard/guilds.html",
-        context
-    )

@@ -39,7 +39,7 @@
 1. `py-cord`, `better-ipc`, `jinja2`를 추가해준다.
     - better-ipc는 dicord.py의 ipc통신 포퍼먼스를 올려주는 library라고 한다.
     ```shell
-    pip install py-crod, better0ipc, jinja2
+    pip install py-crod, better-ipc, jinja2
     
     pip freeze > .\requirements.txt
     
