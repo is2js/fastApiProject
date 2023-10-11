@@ -1,7 +1,5 @@
-from typing import Optional
-
 import discord
-from fastapi import APIRouter, Depends, HTTPException, Form
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi_users import BaseUserManager, models
 from fastapi_users.exceptions import UserAlreadyExists
 from fastapi_users.router import ErrorCode
@@ -14,15 +12,15 @@ from app.libs.auth.oauth_clients import get_oauth_client
 from app.libs.auth.oauth_clients.discord import DiscordClient
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
-from app.libs.discord.bot import ipc_client
 from app.libs.discord.bot.ipc_client import discord_ipc_client
 from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
 from app.models import SnsType
 from app.api.dependencies.auth import get_user_manager
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
 from app.pages.decorators import oauth_login_required
+from app.schemas.discord import GuildLeaveRequest
 from app.utils.date_utils import D
-from app.utils.http_utils import render, redirect, is_htmx
+from app.utils.http_utils import render, redirect, is_htmx, hx_vals_schema
 
 # router = APIRouter(route_class=DiscordRoute)
 router = APIRouter()
@@ -103,25 +101,33 @@ async def get_guild(request: Request, guild_id: int):
             f'&state={generate_state_token(dict(next=str(request.url)), JWT_SECRET)}'
         )
 
-    return render(request, 'bot_dashboard/guild.html', context={**guild_stats})
+    return render(request, 'bot_dashboard/guild-detail.html', context={**guild_stats})
 
 
 @router.post("/guilds/delete")
 @oauth_login_required(SnsType.DISCORD)
-async def delete_guild(request: Request, is_htmx=Depends(is_htmx), guild_id: Optional[int] = Form(default=None)):
-    # print(f"guild_id >> {guild_id}")
-    # guild_id >> 1161106117141725284
+async def delete_guild(
+        request: Request,
+        # guild_id: int = Form(...),
+        # body: GuildLeaveRequest, # 422 Entity error <- hx_vals를 pydantic이 route에서 바로 못받는다.
+        # body = Body(...),
+        # body >> b'guild_id=1161106117141725284&member_count=3'
+        body=Depends(hx_vals_schema(GuildLeaveRequest)),
+        is_htmx=Depends(is_htmx),
+):
+    # print(f"body >> {body}")
+    # body >> guild_id=1161106117141725284
+    # body >> guild_id=1161106117141725284 member_count=3
 
-    leave_guild = await discord_ipc_client.request('leave_guild', guild_id=guild_id)
+    # leave_guild = await discord_ipc_client.request('leave_guild', guild_id=guild_id)
+    leave_guild = await discord_ipc_client.request('leave_guild', guild_id=body.guild_id)
     leave_guild = leave_guild.response
-
 
     # user 관리 서버 중, bot에 없는 guild -> [bot 추가 url]을 만들어준다.
     if not leave_guild['success']:
         raise
 
     # return redirect(request.url_for('guilds'))
-
     return redirect(request.url_for('guilds'), is_htmx=is_htmx)
 
 

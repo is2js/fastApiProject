@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from app.common.config import DISCORD_BOT_SECRET_KEY, DISCORD_BOT_TOKEN
 from app.errors.exceptions import DiscordIpcError
+from app.utils.auth_utils import update_query_string
 from app.utils.logger import app_logger
 
 
@@ -44,14 +45,28 @@ class DiscordBot(ezcord.Bot):
     @Server.route()
     async def guild_stats(self, data: ClientPayload):
         guild = self.get_guild(data.guild_id)
+        # .get_guild -> Guild: https://discordpy.readthedocs.io/en/stable/api.html#discord.Guild
+        # => .icon은 image url이 아닌 Asset 객체
+        # .icon -> Asset: https://discordpy.readthedocs.io/en/stable/api.html#discord.Asset
+        # Attributes
+        # - key, url
+        # => guild.icon(Asset).url 로 써야 이미지 경로가 나온다.
 
         if not guild:
             return {}  # 외부에서 .response는 때려야하므로 ...
+
+        icon = guild.icon.url
+        # icon : https://cdn.discordapp.com/icons/1156511536316174368/b56a15058665d945d28251148720f3b9.png?size=1024
+        icon = update_query_string(icon, size=128)
+        # icon = guild.icon.url.with_size(35)
+        # print(f"icon >> {icon}")
+        # icon >> https://cdn.discordapp.com/icons/1156511536316174368/b56a15058665d945d28251148720f3b9.png?size=55
 
         return {
             "id": data.guild_id,
             "name": guild.name,
             "member_count": guild.member_count,
+            "icon": icon
         }
 
     @Server.route()

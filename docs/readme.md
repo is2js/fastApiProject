@@ -6,18 +6,20 @@
     - python 3.9 / sqlalchemy 2.0.4 이상(relationship refresh lazy load를 위함.)
     - AWS ROUTE 53, SES 경험
     - asyncio를 적용한 비동기 어플리케이션 개발
+
 - 구현 목표
     - fastAPI, DB 등을 모두 Dockerizing 한다.
     - Oauth 인증을 통한 소셜로그인을 적용한다
     - Test 코드를 작성하고 CI를 활용한다.
     - Raw query대신 sqlalchemy 2.0의 mixin 등을 구현해서 활용한다.
+    - Discord bot을 활용하여 동료들과 데이터 관리를 할 수 있다.
 
-- **[base structure](https://github.com/riseryan89/notification-api)에 기능 구현사항**
+- **[base structure](https://github.com/riseryan89/notification-api)에 기능 추가 구현**
     - 제작 과정 문서화 + 도커라이징 + 프로젝트 구조 변경(api패키지 도입)
     - DB table 자동 생성 적용
     - schemas.py <-> models.py 구분
     - Sqlalchemy BaseModel <-> Mixin 구분, Sqlalchemy Mixin 고도화(2.0 style + async 적용 등)
-        - `Sqlalchemy 2.0 style + async sqlalchemy`를 적용한 `mixin` 구현
+        - **`Sqlalchemy 2.0 style + async sqlalchemy`를 적용한 `mixin` 구현**
         - AsyncSession 사용시 BaseModel의 default칼럼 refresh prevening by `__mapper_args__ = {"eager_defaults": True}`
     - 명확한 변수화(is_exists -> exists_user, reg_info -> user_register_info 등)
     - 코드 간결화(if user: return True + return False -> return True if user else False)
@@ -35,8 +37,11 @@
         3. discord 로그인
     - Discord bot 및 ipc server 생성 -> Discord bot dashboard 페이지 생성
        - `py-cord` 및 `ezcord` 패키지 사용
+       - **Dashboard상 내 관리 server에서 `bot을 추가하거나 bot을 제거하는 기능` 구현**
     - template render용 oauth redirect(next=) 가능한 state= 인코딩 jinja filter 및 oauth callback route 구현
-       - template render전용 디펜던시, 메서드 구현. 
+       - template render전용 디펜던시, 메서드 구현.
+    - htmx의 post 요청시 `hx-vals`를 받지못하는 Pydantic Model에 대해 `custom dependency`을 구현하여 Pydantic과 연계 가능토록 구현
+
 
 
 
