@@ -13,7 +13,7 @@ from app.errors.exception_handler import exception_handler
 from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized, DBException, \
     InvalidServiceQueryStringException, InvalidServiceHeaderException, NoKeyMatchException, \
     InvalidServiceTimestampException
-from app.models import ApiKeys
+from app.models import ApiKeys, Users
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
@@ -67,7 +67,9 @@ class AccessControl(BaseHTTPMiddleware):
 
             response = await call_next(request)
             # 응답 전 logging
-            if url != "/":
+            # if url != "/" :
+            # => 템플릿 사용하는 경우, reqeust.state.user에 Users모델 객체가 들어가있으니 로그찍지말자.
+            if url != "/" and (request.state.user and not isinstance(request.state.user, Users)):
                 await app_logger.log(request=request, response=response)
 
         except Exception as e:

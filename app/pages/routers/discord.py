@@ -1,56 +1,77 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+import discord
+from fastapi import APIRouter, Depends, HTTPException, Form
 from fastapi_users import BaseUserManager, models
 from fastapi_users.exceptions import UserAlreadyExists
 from fastapi_users.router import ErrorCode
+from fastapi_users.router.oauth import generate_state_token
 from starlette import status
 from starlette.requests import Request
 
+from app.common.config import DISCORD_CLIENT_ID, JWT_SECRET
 from app.libs.auth.oauth_clients import get_oauth_client
+from app.libs.auth.oauth_clients.discord import DiscordClient
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
+from app.libs.discord.bot import ipc_client
+from app.libs.discord.bot.ipc_client import discord_ipc_client
 from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
 from app.models import SnsType
 from app.api.dependencies.auth import get_user_manager
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
 from app.pages.decorators import oauth_login_required
 from app.utils.date_utils import D
-from app.utils.http_utils import render
+from app.utils.http_utils import render, redirect, is_htmx
 
 # router = APIRouter(route_class=DiscordRoute)
 router = APIRouter()
 
 
-# async def discord_home(request: Request, user: Users = Depends(optional_current_active_user)):
 @router.get("/")
 async def discord_home(request: Request):
     """
     `Discord Bot Dashboard Home`
     """
-    # request.state.user >> <Users#4>
-    # request.state.bot_guild_count >> 1
 
-    # return templates.TemplateResponse(
-    #     "bot_dashboard/home.html",
-    #     context
-    # )
-    #
     return render(request, "bot_dashboard/home.html")
 
 
 @router.get("/guilds")
 @oauth_login_required(SnsType.DISCORD)
 async def guilds(request: Request):
-    access_token = request.state.user.get_oauth_access_token('discord')
+    access_token = request.state.user.get_oauth_access_token(SnsType.DISCORD)
 
-    oauth_client = get_oauth_client(SnsType.DISCORD)
+    oauth_client: DiscordClient = get_oauth_client(SnsType.DISCORD)
     user_guilds = await oauth_client.get_guilds(access_token)
-    # https://discord.com/developers/docs/resources/user#get-current-user-guilds
 
+    guild_ids = await discord_ipc_client.request('guild_ids')
+    # guild_ids.response >> {'guild_ids': [1156511536316174368]}
+    guild_ids = guild_ids.response['guild_ids']
+
+    # https://discord.com/developers/docs/resources/user#get-current-user-guilds
     for guild in user_guilds:
+        # 해당user의 permission으로 guild 관리자인지 확인
+        # (1) discord.Permissions( guild['permissions'] ).administrator   or  (2) guild['owner']
+        is_admin: bool = discord.Permissions(guild['permissions']).administrator or guild['owner']
+        if not is_admin:
+            continue
+
+        # (2) icon 간편주소를 img주소로 변경
         if guild.get('icon', None):
             guild['icon'] = 'https://cdn.discordapp.com/icons/' + guild['id'] + '/' + guild['icon']
         else:
             guild['icon'] = 'https://cdn.discordapp.com/embed/avatars/0.png'
+
+        # (3) user의 guild id가 bot에 포함되면, use_bot 속성에 True, 아니면 False를 할당하자.
+        # => user_guilds의 guild마다 id는 string으로 적혀있으니 int로 변환해서 확인한다. (서버반환은 guild_ids는 int)
+        guild['use_bot'] = (int(guild['id']) if isinstance(guild['id'], str) else guild['id']) in guild_ids
+
+        # (4) 개별guild 접속에 필요한 guild['id'] -> guild['url] 만들어서 넘겨주기
+        guild['url'] = str(request.url_for('get_guild', guild_id=guild['id']))
+
+    # bool을 key로 주면, False(0) -> True(1) 순으로 가므로, reverse까지 해줘야함
+    user_guilds.sort(key=lambda x: x['use_bot'], reverse=True)
 
     context = {
         'user_guilds': user_guilds,
@@ -61,6 +82,69 @@ async def guilds(request: Request):
         "bot_dashboard/guilds.html",
         context=context
     )
+
+
+@router.get("/guilds/{guild_id}")
+@oauth_login_required(SnsType.DISCORD)
+async def get_guild(request: Request, guild_id: int):
+    ...
+    guild_stats = await discord_ipc_client.request('guild_stats', guild_id=guild_id)
+    guild_stats = guild_stats.response  # 비었으면 빈 dict
+
+    # user 관리 서버 중, bot에 없는 guild -> [bot 추가 url]을 만들어준다.
+    if not guild_stats:
+        return redirect(
+            f'https://discord.com/oauth2/authorize?'
+            f'&client_id={DISCORD_CLIENT_ID}'
+            f'&scope=bot&permissions=8'
+            f'&guild_id={guild_id}'
+            f'&response_type=code'
+            f'&redirect_uri={str(request.url_for("template_oauth_callback", sns_type=SnsType.DISCORD.value))}'
+            f'&state={generate_state_token(dict(next=str(request.url)), JWT_SECRET)}'
+        )
+
+    return render(request, 'bot_dashboard/guild.html', context={**guild_stats})
+
+
+@router.post("/guilds/delete")
+@oauth_login_required(SnsType.DISCORD)
+async def delete_guild(request: Request, is_htmx=Depends(is_htmx), guild_id: Optional[int] = Form(default=None)):
+    # print(f"guild_id >> {guild_id}")
+    # guild_id >> 1161106117141725284
+
+    leave_guild = await discord_ipc_client.request('leave_guild', guild_id=guild_id)
+    leave_guild = leave_guild.response
+
+
+    # user 관리 서버 중, bot에 없는 guild -> [bot 추가 url]을 만들어준다.
+    if not leave_guild['success']:
+        raise
+
+    # return redirect(request.url_for('guilds'))
+
+    return redirect(request.url_for('guilds'), is_htmx=is_htmx)
+
+
+# @app.route("/dashboard")
+# async def dashboard():
+# 	if not await discord.authorized:
+# 		return redirect(url_for("login"))
+#
+# 	guild_count = await ipc_client.request("get_guild_count")
+# 	guild_ids = await ipc_client.request("get_guild_ids")
+#
+# 	user_guilds = await discord.fetch_guilds()
+#
+# 	guilds = []
+#
+# 	for guild in user_guilds:
+# 		if guild.permissions.administrator:
+# 			guild.class_color = "green-border" if guild.id in guild_ids else "red-border"
+# 			guilds.append(guild)
+#
+# 	guilds.sort(key = lambda x: x.class_color == "red-border")
+# 	name = (await discord.fetch_user()).name
+# 	return await render_template("dashb
 
 
 @router.get("/callback", name='discord_callback')

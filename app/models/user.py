@@ -63,12 +63,12 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
                             lazy=True
                             )
 
-    def get_oauth_access_token(self, oauth_name: str):
+    def get_oauth_access_token(self, sns_type: SnsType):
         """
         lazy="joined"되어 session 없이, oauth_accounts 모델에서 특정 oauth의 access_token을 얻는 메서드
         """
         for existing_oauth_account in self.oauth_accounts:
-            if existing_oauth_account.oauth_name == oauth_name:
+            if existing_oauth_account.oauth_name == sns_type.value:
                 return existing_oauth_account.access_token
 
         return None

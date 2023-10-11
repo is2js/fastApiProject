@@ -190,6 +190,16 @@ class RequestError(BadRequestException):
         )
 
 
+class StateDecodeException(BadRequestException):
+
+    def __init__(self, exception: Exception = None):
+        super().__init__(
+            code_number=16,
+            detail="state의 value를 jwt decode하는데 실패했습니다.",
+            exception=exception
+        )
+
+
 # 401
 class NotAuthorized(APIException):
 

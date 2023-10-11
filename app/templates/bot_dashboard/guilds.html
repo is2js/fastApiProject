@@ -4,17 +4,19 @@
 
 {% block content %}
     {#<h1>{{request.base_url}} {{request.path}} {{request.url}} {{request.url._url}}</h1>#}
-    <h6 class="h6 text-white text-center">내 서버 목록 ({{ user_guilds | count }})</h6>
+    <h4 class="h4 text-white text-center mb-3">내 관리 서버 목록 ({{ user_guilds | count }})</h4>
     <div class="row px-3 row-gap-3">
         {% for guild in user_guilds %}
             <div class="col-sm-12 col-md-6 col-lg-4">
-                <div class="guild-item px-2 d-flex justify-content-center align-items-center rounded-3">
-                    {#<img class="me-3 h-75 rounded" src="https://cdn.discordapp.com/embed/avatars/0.png">#}
-                    <img class="me-3 h-75 rounded" src="{{ guild.icon }}">
-                    <p class="m-0 h-75 d-flex align-items-center">
-                        <b>{{ guild.name }}</b>
-                    </p>
-                </div>
+                <a href="{{ guild.url }}" class="text-decoration-none text-white">
+                    <div class="guild-item px-2 d-flex justify-content-center align-items-center rounded-3 {% if guild.use_bot %}border-guild{% endif %}">
+                        {#<img class="me-3 h-75 rounded" src="https://cdn.discordapp.com/embed/avatars/0.png">#}
+                        <img class="me-3 h-75 rounded" src="{{ guild.icon }}">
+                        <p class="m-0 h-75 d-flex align-items-center">
+                            <b>{{ guild.name }}</b>
+                        </p>
+                    </div>
+                </a>
             </div>
         {% endfor %}
     </div>

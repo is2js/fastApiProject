@@ -76,3 +76,7 @@ strong {
     transform: scale(1.05);
     box-shadow: 0 .2rem .5rem rgba(0, 0, 0, 0.3), 0 1rem .5rem rgba(0, 0, 0, 0.22)
 }
+
+.border-guild {
+     border: 2px solid #ea461e;
+}

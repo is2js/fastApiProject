@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from app import api
+from app import api, pages
 from app.api.dependencies.auth import current_active_user, request_with_fastapi_optional_user
 from app.common.config import Config, DISCORD_BOT_TOKEN
 from app.database.conn import db
@@ -52,7 +52,7 @@ def create_app(config: Config):
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.TRUSTED_HOSTS, except_path=["/health"])
 
     # route 등록
-    app.include_router(pages.router)  # template or test
+    app.include_router(pages.routers.router)  # template or test
     app.include_router(api.router, prefix='/api')
 
     # template용 discord auth 없이 접근시 redirect

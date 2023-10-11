@@ -1,0 +1,23 @@
+{% extends "bot_dashboard/guilds.html" %}
+
+{% block title %} {{ name }} | {{ super() }} {% endblock title %}
+
+{% block content %}
+    <h1> {{ name }} </h1>
+    {#<a href="javascript:history.back();">#}
+    {# bot 추가 url담에 넘어올 수 있어서, route로 링크를 건다. #}
+    <a href="{{ request.url_for('guilds') }}">
+        <button> 뒤로가기</button>
+    </a>
+
+    <h2> ID: {{ id }} </h2>
+    <h2> Member: {{ member_count }} 명</h2>
+
+    <button
+        class='btn btn-sm btn-auth'
+        hx-post='{{url_for("delete_guild")}}'
+        hx-vals='{"guild_id": "{{ id }}"}'
+        >
+        서버 bot 제거
+    </button>
+{% endblock content %}

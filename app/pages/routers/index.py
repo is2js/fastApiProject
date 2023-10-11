@@ -31,16 +31,8 @@ async def index(request: Request, session: AsyncSession = Depends(db.session)):
     """
     `ELB 헬스 체크용`
     """
-    print(f"request.path_params['sns_type'] >> {request.path_params['sns_type']}")
 
     return "ok"
-    # context = {
-    #     'request': request,  # 필수
-    # }
-    # return templates.TemplateResponse(
-    #     "index.html",
-    #     context
-    # )
 
 
 @router.get("/test")

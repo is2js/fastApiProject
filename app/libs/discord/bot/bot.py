@@ -1,10 +1,11 @@
 import asyncio
 from os import environ
+from pathlib import Path
 
 import discord
 import ezcord
 
-from discord.ext.ipc import Server
+from discord.ext.ipc import Server, ClientPayload
 from fastapi import FastAPI
 
 from app.common.config import DISCORD_BOT_SECRET_KEY, DISCORD_BOT_TOKEN
@@ -17,7 +18,6 @@ class DiscordBot(ezcord.Bot):
         super().__init__(intents=discord.Intents.default())
         # self.ipc = Server(self, secret_key="hani")  # test 이후 config로 변경
         self.ipc = Server(self, secret_key=DISCORD_BOT_SECRET_KEY)
-
 
     async def on_ready(self):
         await self.ipc.start()
@@ -34,11 +34,46 @@ class DiscordBot(ezcord.Bot):
         # => route라서, 외부에서 .response를 찍어 확인하며, 응답은 여느 http router처럼, str() or dict() ...
         return str(len(self.guilds))
 
+    @Server.route()
+    async def guild_ids(self, _):
+        # Expected type Dict or string as response, got list instead!
+        # return [guild.id for guild in self.guilds]
+        # => 외부에서는 await 호출 -> .response로 받는데, 이 때 str or dict가 반환되어야한다.
+        return dict(guild_ids=[guild.id for guild in self.guilds])
+
+    @Server.route()
+    async def guild_stats(self, data: ClientPayload):
+        guild = self.get_guild(data.guild_id)
+
+        if not guild:
+            return {}  # 외부에서 .response는 때려야하므로 ...
+
+        return {
+            "id": data.guild_id,
+            "name": guild.name,
+            "member_count": guild.member_count,
+        }
+
+    @Server.route()
+    async def leave_guild(self, data: ClientPayload):
+        guild = self.get_guild(data.guild_id)
+        if guild:
+            try:
+                await guild.leave()
+                return {"success": True, "message": f"Bot has left the server {data.guild_id}."}
+            except discord.Forbidden:
+                return {"success": False, "message": "I do not have permission to leave the server."}
+            except discord.HTTPException:
+                return {"success": False, "message": "Failed to leave the server."}
+        else:
+            return {"success": False, "message": f"Guild {data.guild_id} not found."}
+
     def init_app(self, app: FastAPI):
         @app.on_event("startup")
         async def start_up_discord():
             # 연결에 실패하더라도, app은 돌아가도록
             try:
+                self.load_cogs(Path(__file__).resolve().parent / 'cogs')
                 asyncio.create_task(self.start(DISCORD_BOT_TOKEN))
             except discord.LoginFailure:
                 app_logger.get_logger.error('Discord bot 연결에 실패하였습니다.')

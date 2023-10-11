@@ -144,7 +144,6 @@ def get_discord_client():
     - **state_data를 받아주는 커스텀 oauth_callback.py만 필요한 듯?**
     ```python
     @router.get("/guilds")
-    
     @oauth_login_required(SnsType.DISCORD)
     async def guilds(request: Request):
         access_token = request.state.user.get_oauth_access_token('discord')
@@ -164,6 +163,22 @@ def get_discord_client():
         )
     
     ```
+  
+#### 로직 추가 -> request.state.user라도, discord token 정보가 없으면, 비로그인이나 마찬가지다.
+- **request.state.user에 user가 없거나**
+- **`request.state.user가 있더라도, 해당 user에 해당sns_type의 access_token이 없는 경우로 조건을 추가`한다.**
+```python
+def oauth_login_required(sns_type: SnsType):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(request: Request, *args, **kwargs):
+            # if not request.state.user:
+            ## request.state.user가 차있는 로그인 상태라도, oauth_account에 discord 토큰이 없으면, oauth login required에 배반이다.
+            user: Users = request.state.user
+            if not user or not user.get_oauth_access_token(sns_type):
+                if sns_type == SnsType.DISCORD:
+```
+
 #### fastapi-users backend객체에만 정의해놨던 get_profile_info를 자체콜백을 위해 client에도 옮겨준다.
 
 - **각 백엔드 객체 속 get_profile_info 메서드를 -> 각 oauth client객체에도 다 옮겨준다.**

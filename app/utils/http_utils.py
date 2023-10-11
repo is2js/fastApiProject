@@ -1,7 +1,7 @@
 import typing
 
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, HTMLResponse
+from starlette.responses import JSONResponse, RedirectResponse, HTMLResponse, Response
 
 from app.common.config import config
 from app.pages.routers import templates
@@ -19,8 +19,15 @@ def is_htmx(request: Request):
     return request.headers.get("hx-request") == 'true'
 
 
-def redirect(path, cookies: dict = {}, logout=False):
-    response = RedirectResponse(path, status_code=302)
+def redirect(path, cookies: dict = {}, logout=False, is_htmx=False):
+    # htmx 요청을 redirect할 경우
+    if is_htmx:
+        response: Response = Response(status_code=302)
+        response.status_code = 302
+        response.headers['HX-Redirect'] = str(path) if not isinstance(path, str) else path
+
+    else:
+        response = RedirectResponse(path, status_code=302)
 
     for k, v in cookies.items():
         response.set_cookie(key=k, value=v, httponly=True)

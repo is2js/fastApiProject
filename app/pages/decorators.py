@@ -3,6 +3,7 @@ from fastapi import Request
 from fastapi_users.router.oauth import generate_state_token
 from starlette.responses import  RedirectResponse
 
+from app.models import Users
 from app.common.config import JWT_SECRET
 from app.errors.exceptions import NoSupportException
 from app.libs.auth.oauth_clients import get_oauth_client
@@ -36,7 +37,11 @@ def oauth_login_required(sns_type: SnsType):
             oauth_client = get_oauth_client(sns_type)
 
             # redirect_uri에 적을 callback route 만 달라진다.
-            if not request.state.user:
+
+            # if not request.state.user:
+            ## request.state.user가 차있는 로그인 상태라도, oauth_account에 discord 토큰이 없으면, oauth login required에 배반이다.
+            user: Users = request.state.user
+            if not user or not user.get_oauth_access_token(sns_type):
                 if sns_type == SnsType.DISCORD:
 
                     authorization_url: str = await oauth_client.get_authorization_url(
