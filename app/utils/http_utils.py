@@ -47,6 +47,7 @@ def render(request, template_name, context={}, status_code: int = 200, cookies: 
         'user': request.state.user,
         **context
     }
+
     if request.state.bot_guild_count:
         ctx.update({'bot_guild_count': request.state.bot_guild_count})
 

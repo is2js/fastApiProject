@@ -19,7 +19,7 @@
                     await guild.leave()
                     return {"success": True, "message": f"Bot has left the server {data.guild_id}."}
                 except discord.Forbidden:
-                    return {"success": False, "message": "I do not have permission to leave the server."}
+                    return {"success": False, "message": "I do not have total_permission to leave the server."}
                 except discord.HTTPException:
                     return {"success": False, "message": "Failed to leave the server."}
             else:

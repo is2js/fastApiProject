@@ -89,6 +89,11 @@ class Config(metaclass=SingletonMetaClass):
     PROJ_RELOAD: bool = False  # local에서만 True
     DEBUG: bool = False  # Local main.py에서만 True가 되도록 설정 -> api/v1/services접속시 키2개요구x headers에 access_key만
     TEST_MODE: bool = False  # sqlalchemy에서 TEST용 db를 지웠다 만들기 등
+    #### DOCKER_MODE는 main.py 실행인지/docker실행인지 모르기 때문에
+    #### => 직접 실행 직전에 os.environ[]에 넣어줘야, MYSQL_HOST와 PORT가 바뀐다.
+
+    # admin user for role
+    ADMIN_EMAIL = environ.get("ADMIN_EMAIL")
 
     # database
     MYSQL_ROOT_PASSWORD: str = environ["MYSQL_ROOT_PASSWORD"]

@@ -22,6 +22,7 @@ from app.libs.auth.transports import get_cookie_redirect_transport
 from app.pages.oauth_callback import get_oauth_callback, OAuthAuthorizeCallback
 from app.models import Users, SnsType
 from app.utils.date_utils import D
+from app.utils.http_utils import render
 
 router = APIRouter()
 
@@ -165,3 +166,16 @@ async def template_oauth_callback(
     response = await cookie_redirect_transport.get_login_response(user_token_for_cookie)
 
     return response
+
+
+@router.get("/errors/{status_code}")
+async def errors(request: Request, status_code: int):
+    message = "관리자에게 문의해주세요."
+    if status_code == status.HTTP_403_FORBIDDEN:
+        message = "권한이 없습니다."
+
+    context = {
+        "status_code": status_code,
+        "message": message,
+    }
+    return render(request, 'bot_dashboard/errors.html', context=context)

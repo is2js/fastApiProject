@@ -14,10 +14,10 @@ from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
 from app.libs.discord.bot.ipc_client import discord_ipc_client
 from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
-from app.models import SnsType
+from app.models import SnsType, RoleName, Permissions
 from app.api.dependencies.auth import get_user_manager
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
-from app.pages.decorators import oauth_login_required
+from app.pages.decorators import oauth_login_required, role_required, permission_required
 from app.schemas.discord import GuildLeaveRequest
 from app.utils.date_utils import D
 from app.utils.http_utils import render, redirect, is_htmx, hx_vals_schema
@@ -37,6 +37,8 @@ async def discord_home(request: Request):
 
 @router.get("/guilds")
 @oauth_login_required(SnsType.DISCORD)
+@role_required(RoleName.ADMINISTRATOR)
+# @permission_required(Permissions.ADMIN)
 async def guilds(request: Request):
     access_token = request.state.user.get_oauth_access_token(SnsType.DISCORD)
 
@@ -51,7 +53,7 @@ async def guilds(request: Request):
     for guild in user_guilds:
         # 해당user의 permission으로 guild 관리자인지 확인
         # (1) discord.Permissions( guild['permissions'] ).administrator   or  (2) guild['owner']
-        is_admin: bool = discord.Permissions(guild['permissions']).administrator or guild['owner']
+        is_admin: bool = discord.Permissions(guild['permissions']).administrator or guild.get('owner')
         if not is_admin:
             continue
 

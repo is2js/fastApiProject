@@ -3,67 +3,7 @@ from typing import Optional, ClassVar
 from pydantic import BaseModel, EmailStr, field_validator, ConfigDict, SecretStr, root_validator, model_validator, \
     validator, Field
 
-from typing import Any
-from fastapi.params import Path as OrigPath, Undefined
-
-from app.models import SnsType
-
 from typing import Any, Dict, Optional
-
-from fastapi.params import Path as OriginalParamsPath, Undefined
-
-
-class ParamsPath(OriginalParamsPath):
-    """Original ``Path`` in ``fastapi.params`` implementation discards ``default``
-
-    See https://github.com/tiangolo/fastapi/issues/5019
-    """
-
-    def __init__(self, default: Any = Undefined, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if default is not Undefined:
-            self.default = default
-
-
-def Path(  # noqa: N802
-        default: Any = Undefined,
-        *,
-        alias: Optional[str] = None,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        gt: Optional[float] = None,
-        ge: Optional[float] = None,
-        lt: Optional[float] = None,
-        le: Optional[float] = None,
-        min_length: Optional[int] = None,
-        max_length: Optional[int] = None,
-        regex: Optional[str] = None,
-        example: Any = Undefined,
-        examples: Optional[Dict[str, Any]] = None,
-        deprecated: Optional[bool] = None,
-        include_in_schema: bool = True,
-        **extra: Any,
-) -> Any:
-    """Redefined version of Path from ``fastapi.param_functions``"""
-    return ParamsPath(
-        default=default,
-        alias=alias,
-        title=title,
-        description=description,
-        gt=gt,
-        ge=ge,
-        lt=lt,
-        le=le,
-        min_length=min_length,
-        max_length=max_length,
-        regex=regex,
-        example=example,
-        examples=examples,
-        deprecated=deprecated,
-        include_in_schema=include_in_schema,
-        **extra,
-    )
 
 
 class UserRequest(BaseModel):

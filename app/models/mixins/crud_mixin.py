@@ -1,4 +1,3 @@
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.mixins.object_mixin import ObjectMixin
@@ -20,7 +19,7 @@ class CRUDMixin(ObjectMixin):
 
     @create.instancemethod
     async def create(self, session: AsyncSession = None, auto_commit=False, refresh=False, **kwargs):
-        raise NotImplementedError(f'객체 상태에서 create메서드를 호출 할 수 없습니다.')
+        raise NotImplementedError(f'객체 상태에서 {self.__class__.create.__name__} 메서드를 호출 할 수 없습니다.')
 
     # @classmethod
     @class_or_instance_method
@@ -88,7 +87,25 @@ class CRUDMixin(ObjectMixin):
 
     @get.instancemethod
     async def get(self, *ids_, session: AsyncSession = None, **kwargs):
-        raise NotImplementedError(f'객체 상태에서 create메서드를 호출 할 수 없습니다.')
+        raise NotImplementedError(f'객체 상태에서 {self.__class__.get.__name__}를 호출 할 수 없습니다.')
+
+    @class_or_instance_method
+    async def row_count(cls, session: AsyncSession = None, **kwargs):
+        """
+        데이터 1개라도 존재여부 확인을 위해 구현
+        -> if await Roles.row_count()
+        """
+        obj = await cls.create_obj(session=session, where=kwargs)
+        # query= 키워드를 안넣어줬다면, 내부 set_query에서 self._query = select(self.__class__) 입력됨.
+
+        # 실행메서드는 외부session없으면 이미 session발급된 obj에서 self.session으로수행
+        count_ = await obj.count(session=session)
+
+        return count_
+
+    @row_count.instancemethod
+    async def row_count(self, session: AsyncSession = None):
+        raise NotImplementedError(f'객체 상태에서 {self.__class__.row_count.__name__} 메서드를 호출 할 수 없습니다.')
 
     @class_or_instance_method
     @async_chain
@@ -140,7 +157,7 @@ class CRUDMixin(ObjectMixin):
     ###################
     @class_or_instance_method
     async def update(self, session: AsyncSession = None, auto_commit: bool = False, **kwargs):
-        raise NotImplementedError(f'update 메서드는 객체상태에서만 호출 할 수 있습니다.')
+        raise NotImplementedError(f'{self.update.__name__} 메서드는 객체상태에서만 호출 할 수 있습니다.')
 
     @update.instancemethod
     async def update(self, session: AsyncSession = None, auto_commit: bool = False, refresh=False, **kwargs):
@@ -164,8 +181,6 @@ class CRUDMixin(ObjectMixin):
             return None
 
         return await self.save(auto_commit=auto_commit, refresh=refresh)
-
-
 
     @class_or_instance_method
     async def delete(self, session: AsyncSession = None, auto_commit: bool = False):

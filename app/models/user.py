@@ -2,21 +2,22 @@ from __future__ import annotations
 
 import random
 import string
-from typing import List
 from uuid import uuid4
 
 from fastapi_users_db_sqlalchemy import (
     SQLAlchemyBaseUserTable,
     SQLAlchemyBaseOAuthAccountTable,
 )
-from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func
+from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship, Mapped
 
 from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
 
 from app.models.base import BaseModel
-from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender
+from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender, RoleName, RolePermissions, Permissions
 
 
 # class Users(BaseModel):
@@ -60,8 +61,22 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
 
     api_keys = relationship("ApiKeys", back_populates="user",
                             cascade="all, delete-orphan",
-                            lazy=True
+                            lazy=True  # 'select'로서 자동load아님. fastapi-users에서는 내부 join후 처리함.
                             )
+
+    # 1. many에 fk를 CASCADE or 안주고 달아준다.
+    # role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
+
+    # 2. many.one 을 단수로 쓰기 위해 uselist=false로 relation을 생성한다.
+    # 3. lazy 전략 선택
+    # => 추가쿼리를 날리기위한 Query객체 반환 dynamic(안씀) VS eagerload용 default 'select' VS 자동load용 'subquery', 'selectin', 'joined'
+    # => 자동load시 대상이 1) many-> 'joined', 2) one -> 'subquery' or 'selectin' 선택
+    role = relationship("Roles",  # back_populates="user",
+                        foreign_keys=[role_id],
+                        uselist=False,
+                        lazy='subquery',  # lazy: _LazyLoadArgumentType = "select",
+                        )
 
     def get_oauth_access_token(self, sns_type: SnsType):
         """
@@ -73,6 +88,29 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
 
         return None
 
+    @hybrid_property
+    def role_name(self) -> RoleName:
+        """
+        lazy='subquery' 되어 자동 load되는 Roles객체의 name(Enum-RoleName)을 바로 조회하여
+        -> User Response Schema (UserRead)에 Roles-name필드 type(RoleName)으로 정의할 수 있게 된다.
+        """
+        return self.role.name
+
+    def has_permission(self, permission: Permissions) -> bool:
+        """
+        lazy='subquery' 되어 자동 load되는 Roles객체의 total_permission 합을 조회하여, 단독 Permission과 int비교
+        @permission_required( ) 에서 사용될 예정.
+        """
+        #  9 > Permissions.CLEAN # True # int Enum은 int와 비교 가능하다.(자동 value로 비교)
+        return self.role.permission >= permission
+
+    def has_role(self, role_name: RoleName) -> bool:
+        """
+        lazy='subquery' 되어 자동 load되는 Roles객체의 permission을 조회하여,
+        @role_required( ) 에서 사용될 예정.
+        """
+        return self.has_permission(role_name.max_permission)
+
 
 class OAuthAccount(BaseModel, SQLAlchemyBaseOAuthAccountTable[int]):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -80,6 +118,41 @@ class OAuthAccount(BaseModel, SQLAlchemyBaseOAuthAccountTable[int]):
                         foreign_keys=[user_id],
                         uselist=False,
                         )
+
+
+class Roles(BaseModel):
+    name = Column(Enum(RoleName), default=RoleName.USER, unique=True, index=True)
+    default = Column(Boolean, default=False, index=True)
+    permission = Column(Integer, default=0)
+
+    @classmethod
+    async def insert_roles(cls, session: AsyncSession = None):
+        """
+        app 구동시, 미리 DB 삽입 하는 메서드
+        """
+        for role_name in RoleName:
+
+            if await cls.filter_by(name=role_name).exists():
+                continue
+
+            await cls.create(
+                session=session,
+                auto_commit=True,
+                name=role_name,
+                permission=role_name.total_permission,
+                default=(role_name == RoleName.USER)
+            )
+
+    def has_permission(self, permission):
+        # self.perm == perm의 확인은, (중복int를 가지는 Perm도 생성가능하다고 생각할 수 있다)
+        return self.permission >= permission
+
+    # def _add_permission(self, total_permission):
+    #     # 6) 해당 perm(같은int)을 안가지고 잇을때만 추가한다다
+    #     if not self.has_role(total_permission):
+    #         print(f"total_permission >> {total_permission}")
+    #
+    #         self.total_permission += total_permission
 
 
 class ApiKeys(BaseModel):

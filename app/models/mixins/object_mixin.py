@@ -3,12 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.collections import InstrumentedList
 
-from app.database.conn import db
 from app.errors.exceptions import SaveFailException, RemoveFailException
 from app.models.mixins.base_mixin import BaseMixin
 from app.models.mixins.consts import Clause, OPERATOR_SPLITTER, Logical, ORDER_BY_DESC_PREFIX
 from app.models.mixins.maps import operator_map
-from app.models.utils.decorators import with_transaction
 
 
 class ObjectMixin(BaseMixin):

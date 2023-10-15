@@ -8,12 +8,11 @@ from typing import AsyncGenerator, Any
 from fastapi import FastAPI
 from sqlalchemy import Engine, Connection, text, create_engine, NullPool
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, async_scoped_session, \
-    AsyncEngine
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession, async_scoped_session
 from sqlalchemy.orm import declarative_base
 from sqlalchemy_utils import database_exists, create_database
 
-from app.common.config import config, DOCKER_MODE
+from app.common.config import config
 from app.database.mysql import MySQL
 from app.utils.singleton import SingletonMetaClass
 
@@ -112,12 +111,22 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
         :param app:
         :return:
         """
+
         @app.on_event("startup")
         async def start_up():
             # 테이블 생성 추가
             async with self.engine.begin() as conn:
                 await conn.run_sync(Base.metadata.create_all)
                 logging.info("DB create_all.")
+
+            # 초기 모델 -> 없으면 생성
+            from app.models import Roles
+            if not await Roles.row_count():
+                await Roles.insert_roles()
+
+            # from app.models import Users
+            # print(f"await Users.get(1) >> {await Users.get(1)}")
+
 
         @app.on_event("shutdown")
         async def shut_down():

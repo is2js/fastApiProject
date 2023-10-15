@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-from starlette.requests import Request
-from starlette.responses import Response, RedirectResponse
+from starlette.responses import Response
 
 from app.api.dependencies.auth import get_auth_routers, get_register_router, get_password_helper, get_oauth_routers
 from app.database.conn import db

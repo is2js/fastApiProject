@@ -1,7 +1,7 @@
 from faker import Faker
 from faker.providers import BaseProvider
 
-from app.models import UserStatus, Gender, SnsType
+from app.models import UserStatus, Gender, SnsType, RoleName
 from app.utils.auth_utils import hash_password
 
 
@@ -27,6 +27,8 @@ class UserProvider(BaseProvider):
         gender = _faker.random_element(Gender).value
         sns_type = _faker.random_element(SnsType).value
 
+        role_name = _faker.random_element(RoleName).value
+
         return dict(
             email=fake_profile['mail'],
             hashed_password=hash_password("string"),
@@ -38,6 +40,7 @@ class UserProvider(BaseProvider):
             status=status,
             gender=gender,
             sns_type=sns_type,
+            role_name=role_name,
         ) | kwargs
 
 
