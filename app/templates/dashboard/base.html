@@ -18,12 +18,17 @@
 
 <body>
 <!-- nav -->
-{% include 'bot_dashboard/snippets/nav.html' %}
+{% include 'dashboard/snippets/nav.html' %}
 <!-- nav -->
 
 <!-- content -->
 <div class="container-fluid mt-3">
-    <h4 class="h4 mb-4">서버 Bot은 <strong>{{ bot_guild_count }}</strong>개의 server에서 활동하고 있습니다.</h4>
+    <!-- bot count  -->
+    {% if bot_guild_count %}
+        <h4 class="h4 mb-4">서버 Bot은 <strong>{{ bot_guild_count }}</strong>개의 server에서 활동하고 있습니다.</h4>
+    {% endif %}
+
+    <!-- content -->
     {% block content %} base {% endblock content %}
 </div>
 <!-- content -->
@@ -56,7 +61,7 @@
                     {% if 'next' in request.query_params %}
                         {% set next_url = request.query_params.next %}
                     {% else %}
-                    // 2-2. 만약, 그냥 로그인/비로그인 허용(base-nav)라면, 현재url을 state에 wjt encoding
+                        // 2-2. 만약, 그냥 로그인/비로그인 허용(base-nav)라면, 현재url을 state에 wjt encoding
                         {% set next_url = request.url._url %}
                     {% endif %}
 

@@ -1,0 +1,16 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %} {{ status_code }} | {{ super() }} {% endblock title %}
+
+{% block content %}
+    <h1><strong>{{ status_code }} 에러</strong>입니다.</h1>
+    <h3 class="my-3">
+        {{ message }}
+    </h3>
+
+    <div class="mt-5">
+        <a class="mt-5" href="{{ url_for('discord_home') }}">
+            <button class="btn btn-sm btn-light">홈으로 가기</button>
+        </a>
+    </div>
+{% endblock content %}

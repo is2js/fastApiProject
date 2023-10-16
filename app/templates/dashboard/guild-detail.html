@@ -1,4 +1,4 @@
-{% extends "bot_dashboard/guilds.html" %}
+{% extends "dashboard/guilds.html" %}
 
 {% block title %} {{ name }} | {{ super() }} {% endblock title %}
 
@@ -6,7 +6,8 @@
     <div class="d-flex justify-content-evenly mb-3">
         {#<a href="javascript:history.back();">#}
         {# bot 추가 url담에 넘어올 수 있어서, route로 링크를 건다. #}
-        <a href="{{ request.url_for('guilds') }}">
+{#        <a href="{{ request.url_for('guilds') }}">#}
+        <a href="{{  url_for('guilds')  }}">
             <button class="btn btn-sm btn-light">뒤로가기</button>
         </a>
         <button class='btn btn-sm btn-auth'

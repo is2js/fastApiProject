@@ -24,7 +24,6 @@ def login_required(func):
             return response
 
         return await func(request, *args, **kwargs)
-
     return wrapper
 
 
@@ -41,6 +40,7 @@ def oauth_login_required(sns_type: SnsType):
             # redirect_uri에 적을 callback route 만 달라진다.
             ## request.state.user가 차있는 로그인 상태라도, oauth_account에 discord 토큰이 없으면, oauth login required에 배반이다.
             user: Users = request.state.user
+
             if not user or not user.get_oauth_access_token(sns_type):
                 if sns_type == SnsType.DISCORD:
 
@@ -58,7 +58,6 @@ def oauth_login_required(sns_type: SnsType):
                 return await func(request, *args, **kwargs)
 
         return wrapper
-
     return decorator
 
 
@@ -69,18 +68,11 @@ def permission_required(permission: Permissions):
             user: Users = request.state.user
 
             if not user.has_permission(permission):
-                # TODO: template error페이지
-                # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
-                # raise ForbiddenException(status_code=status.HTTP_403_FORBIDDEN)
                 raise ForbiddenException(detail=f'{permission.name}에 대한 권한이 없음.')
-                # template_name = 'bot_dashboard/errors.html'
-                # context = {"status_code": status.HTTP_403_FORBIDDEN}
-                # return render(request, template_name, context=context)
 
             return await func(request, *args, **kwargs)
 
         return wrapper
-
     return decorator
 
 
@@ -92,20 +84,9 @@ def role_required(role_name: RoleName):
 
             # 내부에서 user.has_permission을 이용
             if not user.has_role(role_name):
-                # TODO: template error 페이지
-                # raise ForbiddenException(status_code=status.HTTP_403_FORBIDDEN)
-                # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
-
                 raise ForbiddenException(
                     detail=f'{role_name.name}에 대한 권한이 없음.',
                 )
-
-                # template_name = 'bot_dashboard/errors.html'
-                # context = {
-                #     "status_code": status.HTTP_403_FORBIDDEN,
-                #     "message": "권한이 없습니다."
-                # }
-                # return render(request, template_name, context=context)
 
             return await func(request, *args, **kwargs)
         return wrapper

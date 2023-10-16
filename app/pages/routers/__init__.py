@@ -21,8 +21,6 @@ from app.pages.route import TemplateRoute
 router = APIRouter(
     dependencies=[Depends(request_with_fastapi_optional_user)],
     # request.state.user
-    # route_class=TemplateRoute
-
 )
 router.include_router(index.router, tags=['Pages'])
 router.include_router(discord.router, prefix='/discord', tags=['Pages'],

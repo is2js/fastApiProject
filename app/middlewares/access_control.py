@@ -4,7 +4,7 @@ from typing import Optional
 from starlette.datastructures import Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
+from starlette.responses import Response, JSONResponse, RedirectResponse, HTMLResponse
 
 from app.common.config import config
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST, SERVICE_PATH_REGEX, API_PATH_REGEX
@@ -14,9 +14,13 @@ from app.errors.exceptions import APIException, NotFoundUserException, NotAuthor
     InvalidServiceQueryStringException, InvalidServiceHeaderException, NoKeyMatchException, \
     InvalidServiceTimestampException
 from app.models import ApiKeys, Users
+from app.models.mixins.errors import SQLAlchemyException
+from app.pages.exceptions import TemplateException
+from app.pages.routers import templates
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
+from app.utils.http_utils import render, redirect
 from app.utils.logger import app_logger, db_logger
 from app.utils.param_utils import hash_query_string
 
@@ -40,7 +44,7 @@ class AccessControl(BaseHTTPMiddleware):
             # (3) services router들로 들어오면, headers(secret[key]) and querystring([access]key + timestamp)
             # ->  UserToken을 state.user에 담아 endpoint로
             if await url_pattern_check(url, SERVICE_PATH_REGEX):
-            # if await url_pattern_check(url, SERVICE_PATH_REGEX):
+                # if await url_pattern_check(url, SERVICE_PATH_REGEX):
 
                 # (4) local(DEBUG=True) swagger로 qs + secret로는 swagger 테스트가 안되니,
                 # -> swagger에서 삽입한 Authorization으로 인증(user_token)하도록 non_service(headers-Authorization에 jwt access token)로 처리되게 한다.
@@ -72,9 +76,11 @@ class AccessControl(BaseHTTPMiddleware):
             if url != "/" and (request.state.user and not isinstance(request.state.user, Users)):
                 await app_logger.log(request=request, response=response)
 
+            return response
+
         except Exception as e:
             # handler를 통해 정의하지 않은 e라면 -> 기본 500의 APIException으로 변환되게 된다.
-            error: APIException = await exception_handler(e)
+            error: [APIException, SQLAlchemyException, DBException, TemplateException] = await exception_handler(e)
 
             # JSONResponse의 content=로 넣을 error 객체를 dict로 변환한다.
             error_dict = dict(
@@ -84,16 +90,22 @@ class AccessControl(BaseHTTPMiddleware):
                 detail=error.detail,
             )
 
-            response = JSONResponse(status_code=error.status_code, content=error_dict)
-            # logging
-            if isinstance(error, DBException):
+            if isinstance(error, (APIException, SQLAlchemyException, DBException)):
+                response = JSONResponse(status_code=error.status_code, content=error_dict)
+
+            # elif isinstance(error, TemplateException):
+            # 템플릿 에러 -> route depends용 request.state.user을 나와서 render하니 DetachError난다.
+            # => redirect로 에러페이지로 보내자.
+            else:
+                response = redirect(request.url_for('errors', status_code=error.status_code))
+
+            # logging => 템플릿 에러시 내부 request.state.user 사용으로 DetachedError 나는 것을 try로 잡아 except None
+            if isinstance(error, (SQLAlchemyException, DBException)):
                 # APIException의 하위 DBException class부터 검사하여 해당하면 db_logger로 찍기
                 await db_logger.log(request, error=error)
             else:
                 await app_logger.log(request, error=error)
-            return response
 
-        else:
             return response
 
     @staticmethod

@@ -32,7 +32,7 @@ async def discord_home(request: Request):
     `Discord Bot Dashboard Home`
     """
 
-    return render(request, "bot_dashboard/home.html")
+    return render(request, "dashboard/home.html")
 
 
 @router.get("/guilds")
@@ -79,7 +79,7 @@ async def guilds(request: Request):
 
     return render(
         request,
-        "bot_dashboard/guilds.html",
+        "dashboard/guilds.html",
         context=context
     )
 
@@ -103,7 +103,7 @@ async def get_guild(request: Request, guild_id: int):
             f'&state={generate_state_token(dict(next=str(request.url)), JWT_SECRET)}'
         )
 
-    return render(request, 'bot_dashboard/guild-detail.html', context={**guild_stats})
+    return render(request, 'dashboard/guild-detail.html', context={**guild_stats})
 
 
 @router.post("/guilds/delete")

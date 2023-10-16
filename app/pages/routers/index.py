@@ -170,6 +170,7 @@ async def template_oauth_callback(
 
 @router.get("/errors/{status_code}")
 async def errors(request: Request, status_code: int):
+
     message = "관리자에게 문의해주세요."
     if status_code == status.HTTP_403_FORBIDDEN:
         message = "권한이 없습니다."
@@ -178,4 +179,5 @@ async def errors(request: Request, status_code: int):
         "status_code": status_code,
         "message": message,
     }
-    return render(request, 'bot_dashboard/errors.html', context=context)
+
+    return render(request, 'dashboard/errors.html', context=context)

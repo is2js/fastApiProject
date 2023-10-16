@@ -13,7 +13,6 @@ from app.libs.discord.bot.bot import discord_bot
 from app.middlewares.access_control import AccessControl
 from app.middlewares.trusted_hosts import TrustedHostMiddleware
 from app.models import Users
-from app.pages.exceptions import RedirectException
 from app.schemas import UserRead, UserCreate
 from app.utils.http_utils import CustomJSONResponse
 
