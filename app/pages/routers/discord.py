@@ -1,3 +1,5 @@
+import datetime
+
 import discord
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi_users import BaseUserManager, models
@@ -7,14 +9,14 @@ from fastapi_users.router.oauth import generate_state_token
 from starlette import status
 from starlette.requests import Request
 
-from app.common.config import DISCORD_CLIENT_ID, JWT_SECRET
+from app.common.config import DISCORD_CLIENT_ID, JWT_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 from app.libs.auth.oauth_clients import get_oauth_client
 from app.libs.auth.oauth_clients.discord import DiscordClient
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
 from app.libs.discord.bot.ipc_client import discord_ipc_client
 from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
-from app.models import SnsType, RoleName, Permissions
+from app.models import SnsType, RoleName, Permissions, OAuthAccount
 from app.api.dependencies.auth import get_user_manager
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
 from app.pages.decorators import oauth_login_required, role_required, permission_required
@@ -31,6 +33,189 @@ async def discord_home(request: Request):
     """
     `Discord Bot Dashboard Home`
     """
+
+    from google.oauth2.credentials import Credentials
+    from googleapiclient.discovery import build
+
+    user = request.state.user
+
+    # 비로그인 허용이지만, 1) 로그인 된 상태고 2) 구글 계정 정보가 있을 때,
+    # => 구글 계정정보 중 [access_token + refresh_token] + 구글 config정보 [GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET]
+    #    + cred객체 생성후  build객체로 [서비스 요청할 scopes 범위] 총 5개 인자로 creds를 만든다.
+    if user and user.get_oauth_access_token(SnsType.GOOGLE):
+        google_account: OAuthAccount = user.get_oauth_account(SnsType.GOOGLE)
+
+        creds = Credentials.from_authorized_user_info(
+            info=dict(
+                token=google_account.access_token,
+                refresh_token=google_account.refresh_token,
+                client_id=GOOGLE_CLIENT_ID,
+                client_secret=GOOGLE_CLIENT_SECRET,
+                scopes=["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
+            )
+        )
+
+        # print(f"creds >> {creds}")
+        # creds >> <google.oauth2.credentials.Credentials object at 0x0000017E670BB0A0>
+
+        # google_client = get_oauth_client(SnsType.GOOGLE)
+        # refreshed_access_token = await google_client.refresh_token(google_account.refresh_token)
+        # print(f"token >> {refreshed_access_token}")
+        # token >> {'access_token': 'ya29.a0AfB_byBVs9aGnup0mC95okB0R-CMVKjIZhTzHqciJQWsjhvv44QHcnNUofyilz2eOFk1bYAKZ94B5c4A6f_FgzNhv0YXV11YAzaCPPlm26BfyTUJrT2A0hQz3fR5pa7hF17wFwmDA6IAu_sdfukIfD9I4Difpr9RdRJXaCgYKAZ0SARMSFQGOcNnClCFeAErrUax3U9DcG6lM_A0171', 'expires_in': 3599, 'scope': 'openid https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/user.phonenumbers.read https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/user.birthday.read https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/user.gender.read', 'token_type': 'Bearer', 'id_token': 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkMzM0NDk3NTA2YWNiNzRjZGVlZGFhNjYxODRkMTU1NDdmODM2OTMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI2MjI0OTM4MTg3MzUtZzlncDg5amlzbGkyaWdmMnFoa21hbnA0dmdkdGticzQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI2MjI0OTM4MTg3MzUtZzlncDg5amlzbGkyaWdmMnFoa21hbnA0dmdkdGticzQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMDg1MDk4NDM1Mzc2NTI4MDM5NDUiLCJlbWFpbCI6InRpbmdzdHlsZTFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImF0X2hhc2giOiJ5MzZEQjQxRWlsUVYxZm9QUXcyc2NRIiwiaWF0IjoxNjk3NDY2MTY2LCJleHAiOjE2OTc0Njk3NjZ9.eM3VThkyYrLNzX2sMmYARveSr4BChyHKBFWmvHdHtNdL-m75Qn0NHvX1CQF4Ep1mm9vjocVLVYb8PKUB4TiEwq56GOFnfITePwZkYV0DiGNp0GoSNDNCMUnQ672t_K68zZvWe9o0Aw5OeKAn58EH5BPjX3f90kamlLGYErcI-Ztyu3NzMuD9yYcVqY0wGIZ9O0UuZap5LsF1Fd6DX0BHombxVkqk0Gt-iJIGbLGhvOjTnIPwPExUduQzq-_x4Rg_Iv8Q-at1zNQ8njzwcLAouIsd2o2HZL9kc0y2Qqlw7QTngXw4c0uAnJ3PpmQ1QYQNoWCPRSKdykzinnnE-nOKyA', 'expires_at': 1697469766}
+
+        calendar_service = build('calendar', 'v3', credentials=creds)
+
+
+        # Call the Calendar API
+        #### events ####
+        now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
+        print('Getting the upcoming 10 events')
+        events_result = calendar_service.events().list(
+            calendarId='primary',
+            timeMin=now,
+            maxResults=10, singleEvents=True,
+            orderBy='startTime') \
+            .execute()
+        events = events_result.get('items', [])
+
+        # print(f"events >> {events}")
+        # events >> [
+        # {
+        #     "kind":"calendar#event",
+        #     "etag":"\"3222264627100000\"",
+        #     "id":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60_20231020T043000Z",
+        #     "status":"confirmed",
+        #     "htmlLink":"https://www.google.com/calendar/event?eid=Y2hoNjhvajE2c29tOGI5ZzY5aWpjYjlrYzVqNmFiOW82MHI2Y2I5ZzYxaWo4b2oyNzVpbThlMWw2MF8yMDIzMTAyMFQwNDMwMDBaIHRpbmdzdHlsZTFAbQ",
+        #     "created":"2020-03-02T23:26:11.000Z",
+        #     "updated":"2021-01-20T08:45:13.550Z",
+        #     "summary":"마통상품20만원 출금",
+        #     "colorId":"5",
+        #     "creator":{
+        #         "email":"tingstyle1@gmail.com",
+        #         "self":true
+        #     },
+        #     "organizer":{
+        #         "email":"tingstyle1@gmail.com",
+        #         "self":true
+        #     },
+        #     "start":{
+        #         "dateTime":"2023-10-20T13:30:00+09:00",
+        #         "timeZone":"Asia/Seoul"
+        #     },
+        #     "end":{
+        #         "dateTime":"2023-10-20T14:30:00+09:00",
+        #         "timeZone":"Asia/Seoul"
+        #     },
+        #     "recurringEventId":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60",
+        #     "originalStartTime":{
+        #         "dateTime":"2023-10-20T13:30:00+09:00",
+        #         "timeZone":"Asia/Seoul"
+        #     },
+        #     "iCalUID":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60@google.com",
+        #     "sequence":0,
+        #     "reminders":{
+        #         "useDefault":true
+        #     },
+        #     "eventType":"default"
+        # },
+        # ]
+
+        #### calendar list ####
+        current_cals = calendar_service.calendarList().list().execute()
+        print(f"current_cals >> {current_cals}")
+        # {
+        #     "kind":"calendar#calendarList",
+        #     "etag":"\"p328bp1t5gro820o\"",
+        #     "nextSyncToken":"CJC8h6WG8IEDEhR0aW5nc3R5bGUxQGdtYWlsLmNvbQ==",
+        #     "items":[
+        #         {
+        #             "kind":"calendar#calendarListEntry",
+        #             "etag":"\"1657577269858000\"",
+        #             "id":"addressbook#contacts@group.v.calendar.google.com",
+        #             "summary":"생일",
+        #             "description":"Google 주소록에 등록된 사람들의 생일, 기념일, 기타 일정 날짜를 표시합니다.",
+        #             "timeZone":"Asia/Seoul",
+        #             "summaryOverride":"Contacts",
+        #             "colorId":"17",
+        #             "backgroundColor":"#9a9cff",
+        #             "foregroundColor":"#000000",
+        #             "accessRole":"reader",
+        #             "defaultReminders":[
+        #
+        #             ],
+        #             "conferenceProperties":{
+        #                 "allowedConferenceSolutionTypes":[
+        #                     "hangoutsMeet"
+        #                 ]
+        #             }
+        #         },
+        #         {
+        #             "kind":"calendar#calendarListEntry",
+        #             "etag":"\"1657580828523000\"",
+        #             "id":"ko.south_korea#holiday@group.v.calendar.google.com",
+        #             "summary":"대한민국의 휴일",
+        #             "description":"대한민국의 공휴일",
+        #             "timeZone":"Asia/Seoul",
+        #             "summaryOverride":"대한민국의 휴일",
+        #             "colorId":"17",
+        #             "backgroundColor":"#9a9cff",
+        #             "foregroundColor":"#000000",
+        #             "accessRole":"reader",
+        #             "defaultReminders":[
+        #
+        #             ],
+        #             "conferenceProperties":{
+        #                 "allowedConferenceSolutionTypes":[
+        #                     "hangoutsMeet"
+        #                 ]
+        #             }
+        #         },
+        #         {
+        #             "kind":"calendar#calendarListEntry",
+        #             "etag":"\"1657580830000000\"",
+        #             "id":"tingstyle1@gmail.com",
+        #             "summary":"tingstyle1@gmail.com",
+        #             "timeZone":"Asia/Seoul",
+        #             "colorId":"19",
+        #             "backgroundColor":"#c2c2c2",
+        #             "foregroundColor":"#000000",
+        #             "selected":true,
+        #             "accessRole":"owner",
+        #             "defaultReminders":[
+        #                 {
+        #                     "method":"popup",
+        #                     "minutes":30
+        #                 }
+        #             ],
+        #             "notificationSettings":{
+        #                 "notifications":[
+        #                     {
+        #                         "type":"eventCreation",
+        #                         "method":"email"
+        #                     },
+        #                     {
+        #                         "type":"eventChange",
+        #                         "method":"email"
+        #                     },
+        #                     {
+        #                         "type":"eventCancellation",
+        #                         "method":"email"
+        #                     },
+        #                     {
+        #                         "type":"eventResponse",
+        #                         "method":"email"
+        #                     }
+        #                 ]
+        #             },
+        #             "primary":true,
+        #             "conferenceProperties":{
+        #                 "allowedConferenceSolutionTypes":[
+        #                     "hangoutsMeet"
+        #                 ]
+        #             }
+        #         }
+        #     ]
+        # }
 
     return render(request, "dashboard/home.html")
 
@@ -91,7 +276,7 @@ async def get_guild(request: Request, guild_id: int):
     guild_stats = await discord_ipc_client.request('guild_stats', guild_id=guild_id)
     guild_stats = guild_stats.response  # 비었으면 빈 dict
 
-    # user 관리 서버 중, bot에 없는 guild -> [bot 추가 url]을 만들어준다.
+    # user 관리 서버 중, bot에 없는 guild -> [bot 추가 url with state에 돌아올 주소 encode ]을 만들어준다.
     if not guild_stats:
         return redirect(
             f'https://discord.com/oauth2/authorize?'

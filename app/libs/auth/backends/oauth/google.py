@@ -28,7 +28,13 @@ class GoogleBackend(OAuthBackend):
             profile_info = dict()
             # for field in "photos,birthdays,genders,phoneNumbers,names,nicknames".split(","):
             for field in "photos,birthdays,genders,phoneNumbers,names,nicknames".split(","):
-                field_data_list = data.get(field)
+                field_data_list = data.get(field, None)
+
+                # field, field_data_list >> ('phoneNumbers', None)
+                # => 해당 scope에 대해 field_data_list가 없을 수 있다.
+                if not field_data_list:
+                    continue
+
                 primary_data = next(
                     (field_data for field_data in field_data_list if field_data["metadata"]["primary"])
                     , None
@@ -72,7 +78,6 @@ class GoogleBackend(OAuthBackend):
 
             return profile_info
 
-
 # google_cookie_backend = GoogleBackend(
 #     name="cookie",
 #     transport=get_cookie_transport(),
@@ -86,5 +91,3 @@ class GoogleBackend(OAuthBackend):
 #     get_strategy=get_jwt_strategy,
 #     has_profile_callback=True,
 # )
-
-

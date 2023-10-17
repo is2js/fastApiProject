@@ -48,7 +48,8 @@ class OAuthBackend(AuthenticationBackend):
                     # await user.update(auto_commit=True, **profile_info)
                     await user.update(auto_commit=True, **profile_info, sns_type=self.get_oauth_name())
             except Exception as e:
-                raise OAuthProfileUpdateFailException(obj=user, exception=e)
+                # raise OAuthProfileUpdateFailException(obj=user, exception=e)
+                raise e
 
         return strategy_response
 

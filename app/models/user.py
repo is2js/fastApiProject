@@ -17,7 +17,7 @@ from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
 
 from app.models.base import BaseModel
-from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender, RoleName, RolePermissions, Permissions
+from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender, RoleName, Permissions
 
 
 # class Users(BaseModel):
@@ -85,6 +85,16 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
         for existing_oauth_account in self.oauth_accounts:
             if existing_oauth_account.oauth_name == sns_type.value:
                 return existing_oauth_account.access_token
+
+        return None
+
+    def get_oauth_account(self, sns_type: SnsType):
+        """
+        lazy="joined"되어 session 없이, oauth_accounts 모델에서 특정 oauth의 access_token을 얻는 메서드
+        """
+        for existing_oauth_account in self.oauth_accounts:
+            if existing_oauth_account.oauth_name == sns_type.value:
+                return existing_oauth_account
 
         return None
 

@@ -76,6 +76,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
             "refresh_token": refresh_token,
         }
 
+
         try:
             user = await self.get_by_oauth_account(oauth_name, account_id)
         except exceptions.UserNotExists:
