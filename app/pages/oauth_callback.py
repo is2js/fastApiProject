@@ -12,6 +12,7 @@ from app.common.config import JWT_SECRET
 from app.errors.exceptions import StateDecodeException
 from app.libs.auth.oauth_clients import get_oauth_client
 from app.models import SnsType
+from app.pages.exceptions import OAuthDeniedException
 
 
 class DiscordAuthorizeCallback:
@@ -107,6 +108,11 @@ class OAuthAuthorizeCallback:
             state: Optional[str] = None,
             error: Optional[str] = None,
     ) -> Tuple[OAuth2Token, Optional[str]]:
+
+        # 사용자가 인증 [계속] 대신 [취소]를 통해 거부한 경우
+        if error:
+            error_message = "인증이 취소되어, 더이상 진행할 수 없습니다."
+            raise OAuthDeniedException(message=error_message, detail=error)
 
         if code is None or error is not None:
             raise HTTPException(

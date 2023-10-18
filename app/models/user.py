@@ -1,23 +1,31 @@
 from __future__ import annotations
 
+import json
 import random
 import string
+from typing import Optional, List
 from uuid import uuid4
 
 from fastapi_users_db_sqlalchemy import (
     SQLAlchemyBaseUserTable,
     SQLAlchemyBaseOAuthAccountTable,
 )
-from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func, select
+from google.auth import exceptions
+from google.auth.transport import requests as google_auth_requests
+import requests
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from sqlalchemy import Column, Enum, String, Boolean, Integer, ForeignKey, DateTime, func, JSON
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, Mapped
+from sqlalchemy.orm import relationship
 
 from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
 
 from app.models.base import BaseModel
 from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender, RoleName, Permissions
+from app.utils.date_utils import D
 
 
 # class Users(BaseModel):
@@ -121,6 +129,98 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
         """
         return self.has_permission(role_name.max_permission)
 
+    async def get_google_creds(self) -> Optional[Credentials]:
+        """
+        lazy='joined' 되어 자동 load되는 OAuthAccount 중 google정보 인 google_creds_json에서 creds를 Credentials객체로 추출
+        -> 만약 유효하지 않거나 refresh까지 실패한다면, None을 반환
+        """
+        google_account: OAuthAccount = self.get_oauth_account(SnsType.GOOGLE)
+        if not (google_account and (creds := google_account.google_creds_json)):
+            return None
+
+        stored_creds = json.loads(creds)
+
+        # to_json()으로 들어갔떤 것을 다시 load하면 datetime으로 복구가 안된 상태임  => 미리 빼서 저장해놨던 필드를 사용하여 덮어씀.
+        # Get expirery so we can figure out if we need a refresh
+        if google_account.google_creds_expiry is not None:
+            stored_creds["expiry"] = google_account.google_creds_expiry
+        else:
+            stored_creds["expiry"] = D.datetime()
+
+        # for test
+        # stored_creds["expiry"] = D.datetime()
+
+        # Drop timezone info
+        # stored_creds['expiry'] = stored_creds['expiry'].replace(tzinfo=None)
+
+        creds = Credentials(**stored_creds)
+
+        if creds.expired:
+            try:
+                http_request = google_auth_requests.Request()  # google.auth.transport의 패키지(not module) requests(모듈)
+                creds.refresh(http_request)
+
+                # for test
+                # raise exceptions.RefreshError()
+
+                # 성공하면, 변화된 expity와 .to_json() 및 last_refreshed를 업데이트해야한다.
+                await google_account.update(
+                    auto_commit=True,
+                    google_creds_json=creds.to_json(),
+                    google_creds_expiry=creds.expiry,
+                    google_creds_last_refreshed=D.datetime(),
+                )
+
+            except exceptions.RefreshError:
+                # refresh 실패했다면, 해당 creds.token을 revoke 시키고, db에서도 creds관련필드 3개를 비워놓고
+                # -> get_google_creds()를 return None한다.
+
+                revoke = requests.post(
+                    'https://oauth2.googleapis.com/revoke',
+                    params={'token': creds.token},
+                    headers={'content-type': 'application/x-www-form-urlencoded'}
+                )
+
+                await google_account.update(
+                    auto_commit=True,
+                    google_creds_json=None,
+                    google_creds_expiry=None,
+                    google_creds_last_refreshed=None,
+                )
+
+                return None
+
+        return creds
+
+    @property
+    async def google_creds_scopes(self) -> Optional[List[str]]:
+        """
+        lazy='joined' 되어 자동 load되는 OAuthAccount 중 google정보 인 google_creds_json에서 scopes를 확인한다.
+        """
+        creds = await self.get_google_creds()
+        return creds.scopes if creds else None
+
+    async def has_google_creds_and_scopes(self, google_scopes: List[str]) -> bool:
+        """
+        lazy='joined' 되어 자동 load되는 OAuthAccount 중 google정보 인 google_creds_json에서 scopes를 확인한다.
+        @aouth_required(SnsType.GOOGLE, scopes= ) 에서 사용될 예정 이미 요청하여 creds를 가지고 있는지 확인용
+        """
+        if creds_scopes := await self.google_creds_scopes:
+            has_scopes = all(scope in creds_scopes for scope in google_scopes)
+            return has_scopes
+
+        return False
+
+    async def get_google_service(self, service_name: str, api_version: str = 'v3'):
+        creds = await self.get_google_creds()
+
+        if not creds:
+            return None
+
+        service = build(service_name, api_version, credentials=creds)
+
+        return service
+
 
 class OAuthAccount(BaseModel, SQLAlchemyBaseOAuthAccountTable[int]):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
@@ -128,6 +228,12 @@ class OAuthAccount(BaseModel, SQLAlchemyBaseOAuthAccountTable[int]):
                         foreign_keys=[user_id],
                         uselist=False,
                         )
+
+    # 추가 additional_scope 에 대한요청 -> 콜백 -> usermanager로 들어옴 -> creds 생성후 관련정보 저장
+    google_creds_json = Column(JSON,
+                               nullable=True)  # 결국엔 to_json()은 json.dump( dict )로 변환된 string을 받는 것 -> 꺼낼 땐 json.load( string_dict )필요
+    google_creds_expiry = Column(DateTime, nullable=True)
+    google_creds_last_refreshed = Column(DateTime, nullable=True)
 
 
 class Roles(BaseModel):

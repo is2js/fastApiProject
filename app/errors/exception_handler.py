@@ -10,8 +10,8 @@ async def exception_handler(exception: Exception):
 
     # if not isinstance(exception, (APIException, SQLAlchemyException)):
     # - 템플릿 에러도 강제변환 없이, 취급하는 것으로 간주하게 추가해준다.
-    # if not isinstance(exception, (APIException, SQLAlchemyException, DBException, TemplateException)):
-    #     exception = APIException(exception=exception, detail=str(exception))
+    if not isinstance(exception, (APIException, SQLAlchemyException, DBException, TemplateException)):
+        exception = APIException(exception=exception, detail=str(exception))
     ...
     return exception
 

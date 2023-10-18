@@ -6,6 +6,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.errors.exceptions import APIException, DBException
+from app.models.mixins.errors import SQLAlchemyException
+from app.pages.exceptions import TemplateException
 from app.utils.http_utils import redirect, render
 
 
@@ -22,19 +25,24 @@ class TemplateRoute(APIRoute):
             try:
                 return await original_route_handler(request)
             except Exception as e:
-
+                ...
                 # response = redirect(str(request.url_for('template_login', next=request.url), logout=True)
                 # response = redirect(f"/login?next={request.url}", logout=True)
                 # response = redirect(str(request.url_for('discord_home')), logout=True)
 
-                template_name = 'errors/main.html'
+                # template_name = 'errors/main.html'
+                #
+                # if isinstance(e, StarletteHTTPException) and e.status_code == status.HTTP_403_FORBIDDEN:
+                #     template_name = 'errors/403.html'
+                #
+                # context = {"status_code": status.HTTP_403_FORBIDDEN}
+                #
+                # return render(request, template_name, context=context)
+                # if not isinstance(e, (APIException, SQLAlchemyException, DBException, TemplateException)):
+                #     e = TemplateException(exception=e, message="알 수 없는 템플릿 서버 문제가 발생함", detail=str(e))
+                #
+                # raise e
 
-                if isinstance(e, StarletteHTTPException) and e.status_code == status.HTTP_403_FORBIDDEN:
-                    template_name = 'errors/403.html'
-
-                context = {"status_code": status.HTTP_403_FORBIDDEN}
-
-                return render(request, template_name, context=context)
 
             # except RedirectException as exc:
             # system_fail_count.inc()

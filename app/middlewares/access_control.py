@@ -1,5 +1,6 @@
 import time
 from typing import Optional
+from urllib.parse import urlencode
 
 from starlette.datastructures import Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -97,7 +98,9 @@ class AccessControl(BaseHTTPMiddleware):
             # 템플릿 에러 -> route depends용 request.state.user을 나와서 render하니 DetachError난다.
             # => redirect로 에러페이지로 보내자.
             else:
-                response = redirect(request.url_for('errors', status_code=error.status_code))
+                error_endpoint = request.url_for('errors', status_code=error.status_code)
+                error_endpoint = error_endpoint.include_query_params(message=error.message) # message를 쿼리파라미터로 추가
+                response = redirect(error_endpoint)
 
             # logging => 템플릿 에러시 내부 request.state.user 사용으로 DetachedError 나는 것을 try로 잡아 except None
             if isinstance(error, (SQLAlchemyException, DBException)):

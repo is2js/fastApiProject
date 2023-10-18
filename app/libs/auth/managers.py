@@ -6,11 +6,12 @@ from typing import Optional, Generic
 from fastapi_users import IntegerIDMixin, BaseUserManager, models, schemas, exceptions
 from fastapi_users.db import BaseUserDatabase
 from fastapi_users.password import PasswordHelperProtocol
+from google.oauth2.credentials import Credentials
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.models import Users, Roles, RoleName
-from app.common.config import JWT_SECRET, config
+from app.common.config import JWT_SECRET, config, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 from app.utils.date_utils import D
 
 
@@ -63,9 +64,13 @@ class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
     async def oauth_callback(self: "BaseUserManager[models.UOAP, models.ID]", oauth_name: str, access_token: str,
                              account_id: str, account_email: str, expires_at: Optional[int] = None,
                              refresh_token: Optional[str] = None, request: Optional[Request] = None, *,
-                             associate_by_email: bool = False, is_verified_by_default: bool = False) -> models.UOAP:
+                             associate_by_email: bool = False, is_verified_by_default: bool = False,
+                             required_scopes=None,
+                             # 데코레이터 -> session['required_scopes'] ->  template_oauth_callback 라우터에서 받아서 -> oauth_account 업뎃을 위해 들어옴
+                             ) -> models.UOAP:
         """
         Users 생성시, role 추가를 위해 재정의(user_dict)
+        + 추가 template_oauth_callback에서 addiotional_scopes가 넘어왔고 refresh token가 발급된 상황(첫 가입 + @)에서 creds관련 필드들 추가 in oauth_account_dict
         """
         oauth_account_dict = {
             "oauth_name": oauth_name,
@@ -76,6 +81,26 @@ class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
             "refresh_token": refresh_token,
         }
 
+        ##### 추가 scope에 따른 creds 생성후 oauth account 추가 필드 처리 ######
+        # -> 추가 scope가 왔고, refresh_token이 발급된 상황에만 creds 업데이트
+        if required_scopes and refresh_token:
+
+            creds = Credentials.from_authorized_user_info(
+                info=dict(
+                    token=access_token,
+                    refresh_token=refresh_token,
+                    client_id=GOOGLE_CLIENT_ID,
+                    client_secret=GOOGLE_CLIENT_SECRET,
+                    scopes=required_scopes,
+                )
+            )
+
+            # oauth_account 생성 정보인 oauth_account_dict에 cres관련 필드들을 추가한다.
+            oauth_account_dict.update({
+                "google_creds_json": creds.to_json(),  # 전체 정보 -> to_json()은 string이며, string json을 저장하는 JSON 칼럼에 저장한다.
+                "google_creds_expiry": creds.expiry,  # 만료기한만 조회를 위해 빼놓기
+                "google_creds_last_refreshed": D.datetime(),
+            })
 
         try:
             user = await self.get_by_oauth_account(oauth_name, account_id)
@@ -104,7 +129,6 @@ class UserManager(IntegerIDMixin, BaseUserManager[Users, int]):
                 # 아니라면, oauth로그인으로 인한 가입은 기본 Roles("user") 배정
                 else:
                     user_dict["role"] = await Roles.filter_by(default=True).first()
-                ######################
 
                 user = await self.user_db.create(user_dict)
                 user = await self.user_db.add_oauth_account(user, oauth_account_dict)

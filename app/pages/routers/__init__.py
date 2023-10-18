@@ -15,15 +15,17 @@ templates = Jinja2Templates(directory=str(templates_directory))
 # 필터 등록
 templates.env.filters["encode_next_state"] = encode_next_state
 
-from . import index, discord
-from app.pages.route import TemplateRoute
+from . import index, discord, google
+# from app.pages.route import TemplateRoute
 
 router = APIRouter(
     dependencies=[Depends(request_with_fastapi_optional_user)],
     # request.state.user
+    # route_class=TemplateRoute
 )
 router.include_router(index.router, tags=['Pages'])
 router.include_router(discord.router, prefix='/discord', tags=['Pages'],
                       dependencies=[Depends(request_with_fastapi_optional_user_and_bot_guild_count)]
                       # request.state.user / request.state.bot_guild_count
                       )
+router.include_router(google.router, prefix='/google', tags=['Pages'],)

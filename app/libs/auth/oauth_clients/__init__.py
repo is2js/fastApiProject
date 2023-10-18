@@ -4,7 +4,7 @@ from app.common.config import (
     DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET
 )
 from app.errors.exceptions import NoSupportException
-from app.models import SnsType
+from app.models.enums import SnsType
 from .discord import get_discord_client
 from .google import get_google_client
 from .kakao import get_kakao_client

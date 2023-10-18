@@ -2,11 +2,12 @@ from pathlib import Path
 
 from fastapi import FastAPI, Depends
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.staticfiles import StaticFiles
 
 from app import api, pages
 from app.api.dependencies.auth import current_active_user, request_with_fastapi_optional_user
-from app.common.config import Config, DISCORD_BOT_TOKEN
+from app.common.config import Config, DISCORD_BOT_TOKEN, JWT_SECRET
 from app.database.conn import db
 from app.libs.discord.bot.bot import discord_bot
 
@@ -49,6 +50,10 @@ def create_app(config: Config):
         allow_headers=["*"],
     )
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=config.TRUSTED_HOSTS, except_path=["/health"])
+
+    # SessionMiddleware 추가 ( google oauth 데코레이터 - 추가 scopes 를 template_oauth_callback 라우터로 전달하여 creds 생성에 필요)
+    app.add_middleware(SessionMiddleware, secret_key=JWT_SECRET)
+
 
     # route 등록
     app.include_router(pages.routers.router)  # template or test

@@ -75,7 +75,7 @@ class OAuthBackend(AuthenticationBackend):
         # 1. age 계산 (month, day)를 tuple비교로, 지났으면 0(False), 안지났으면 -1(True) 빼준다.
         today = date.today()
         age = today.year - year - ((today.month, today.day) < (month, day))
-        print(age)
+        # print(age)
         # 2. age로 kakao양식의 age_range 반환해주기
         if 1 <= age < 10:
             age_range = "1~9"
