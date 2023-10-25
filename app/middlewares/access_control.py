@@ -14,6 +14,7 @@ from app.errors.exception_handler import exception_handler
 from app.errors.exceptions import APIException, NotFoundUserException, NotAuthorized, DBException, \
     InvalidServiceQueryStringException, InvalidServiceHeaderException, NoKeyMatchException, \
     InvalidServiceTimestampException
+from app.libs.discord.bot.exceptions import DiscordException
 from app.models import ApiKeys, Users
 from app.models.mixins.errors import SQLAlchemyException
 from app.pages.exceptions import TemplateException
@@ -81,7 +82,8 @@ class AccessControl(BaseHTTPMiddleware):
 
         except Exception as e:
             # handler를 통해 정의하지 않은 e라면 -> 기본 500의 APIException으로 변환되게 된다.
-            error: [APIException, SQLAlchemyException, DBException, TemplateException] = await exception_handler(e)
+            # error: [APIException, SQLAlchemyException, DBException, TemplateException] = await exception_handler(e)
+            error: [APIException, SQLAlchemyException, DBException, TemplateException, DiscordException] = await exception_handler(e)
 
             # JSONResponse의 content=로 넣을 error 객체를 dict로 변환한다.
             error_dict = dict(
@@ -91,7 +93,8 @@ class AccessControl(BaseHTTPMiddleware):
                 detail=error.detail,
             )
 
-            if isinstance(error, (APIException, SQLAlchemyException, DBException)):
+            # if isinstance(error, (APIException, SQLAlchemyException, DBException)):
+            if isinstance(error, (APIException, SQLAlchemyException, DBException, DiscordException)):
                 response = JSONResponse(status_code=error.status_code, content=error_dict)
 
             # elif isinstance(error, TemplateException):
@@ -126,6 +129,7 @@ class AccessControl(BaseHTTPMiddleware):
         # template route dependencies
         request.state.user = None
         request.state.bot_guild_count = None
+
 
     @staticmethod
     async def extract_user_token_by_non_service(headers: Headers, cookies: dict[str, str]):

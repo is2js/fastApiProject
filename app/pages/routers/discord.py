@@ -16,6 +16,7 @@ from app.libs.auth.oauth_clients.google import CALENDAR_SCOPES
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
 from app.libs.discord.bot.ipc_client import discord_ipc_client
+from app.pages.exceptions import DiscordBotNotConnectedException
 from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
 from app.models import SnsType, RoleName,  OAuthAccount
 from app.api.dependencies.auth import get_user_manager
@@ -35,19 +36,23 @@ async def discord_home(request: Request):
     `Discord Bot Dashboard Home`
     """
 
-    from google.oauth2.credentials import Credentials
-    from googleapiclient.discovery import build
+    # from google.oauth2.credentials import Credentials
+    # from googleapiclient.discovery import build
 
-    user = request.state.user
+    # user = request.state.user
 
     # 비로그인 허용이지만, 1) 로그인 된 상태고 2) 구글 계정 정보가 있을 때,
     # => 구글 계정정보 중 [access_token + refresh_token] + 구글 config정보 [GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET]
     #    + cred객체 생성후  build객체로 [서비스 요청할 scopes 범위] 총 5개 인자로 creds를 만든다.
-    if user and user.get_oauth_access_token(SnsType.GOOGLE) and await user.has_google_creds_and_scopes(CALENDAR_SCOPES):
-        creds = await user.get_google_creds()
-        calendar_service = build('calendar', 'v3', credentials=creds)
-        current_cals = calendar_service.calendarList().list().execute()
-        print(f"current_cals['items'] >> {current_cals['items']}")
+    # if user and user.get_oauth_access_token(SnsType.GOOGLE) and await user.has_google_creds_and_scopes(CALENDAR_SCOPES):
+    #     creds = await user.get_google_creds()
+    #     calendar_service = build('calendar', 'v3', credentials=creds)
+    #     current_cals = calendar_service.calendarList().list().execute()
+    #     print(f"current_cals['items'] >> {current_cals['items']}")
+    #
+
+
+
         # skewed_expiry = self.expiry - _helpers.REFRESH_THRESHOLD
         # TypeError: unsupported operand type(s) for -: 'str' and 'datetime.timedelta'
         # current_cals['items'] >> [{'kind': 'calendar#calendarListEntry', 'etag': '"1657577269858000"', 'id': 'addressbook#contacts@group.v.calendar.google.com', 'summary': '�깮�씪', 'description': 'Google 二쇱냼濡앹뿉 �벑濡앸맂 �궗�엺�뱾�쓽 �깮�씪, 湲곕뀗�씪, 湲고� �씪�젙 �궇吏쒕�� �몴�떆�빀�땲�떎.', 'timeZone': 'Asia/Seoul', 'summaryOverride': 'Contacts', 'colorId': '17', 'backgroundColor': '#9a9cff', 'foregroundColor': '#000000', 'accessRole': 'reader', 'defaultReminders': [], 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}, {'kind': 'calendar#calendarListEntry', 'etag': '"1657580828523000"', 'id': 'ko.south_korea#holiday@group.v.calendar.google.com', 'summary': '���븳誘쇨뎅�쓽 �쑕�씪', 'description': '���븳誘쇨뎅�쓽 怨듯쑕�씪', 'timeZone': 'Asia/Seoul', 'summaryOverride': '���븳誘쇨뎅�쓽 �쑕�씪', 'colorId': '17', 'backgroundColor': '#9a9cff', 'foregroundColor': '#000000', 'accessRole': 'reader', 'defaultReminders': [], 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}, {'kind': 'calendar#calendarListEntry', 'etag': '"1657580830000000"', 'id': 'tingstyle1@gmail.com', 'summary': 'tingstyle1@gmail.com', 'timeZone': 'Asia/Seoul', 'colorId': '19', 'backgroundColor': '#c2c2c2', 'foregroundColor': '#000000', 'selected': True, 'accessRole': 'owner', 'defaultReminders': [{'method': 'popup', 'minutes': 30}], 'notificationSettings': {'notifications': [{'type': 'eventCreation', 'method': 'email'}, {'type': 'eventChange', 'method': 'email'}, {'type': 'eventCancellation', 'method': 'email'}, {'type': 'eventResponse', 'method': 'email'}]}, 'primary': True, 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}]
@@ -258,7 +263,20 @@ async def guilds(request: Request):
     oauth_client: DiscordClient = get_oauth_client(SnsType.DISCORD)
     user_guilds = await oauth_client.get_guilds(access_token)
 
-    guild_ids = await discord_ipc_client.request('guild_ids')
+    # TODO: dipc client class를 만들어서, 요청시 예외처리 넣기 ?
+    # TODO: ipc client도 lifespan에 넣어서, 전역변수로서 활용해보기
+    # TODO: ipc client도 비동기 on_ready? https://pypi.org/project/discord-ipc/
+    #       - 이전버전엔 bot class에서 처리 https://pypi.org/project/discord-ipc/0.0.4/
+    #       - 현재clinet의 구식버전: https://github.com/lgaan/discord-ext-ipc
+    try:
+        guild_ids = await discord_ipc_client.request('guild_ids')
+    except Exception as e:
+        # "[Errno 10061] Connect call failed ('127.0.0.1', 20000)"
+        raise DiscordBotNotConnectedException(
+            message='현재 discord bot이 연결되지 않아 사용할 수 없습니다.',
+            exception=e,
+        )
+
     # guild_ids.response >> {'guild_ids': [1156511536316174368]}
     guild_ids = guild_ids.response['guild_ids']
 

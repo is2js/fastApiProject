@@ -277,7 +277,7 @@
         load_dotenv()
         token = environ.get("DISCORD_BOT_TOKEN", None)
         
-        bot.run(token)
+        bot.run()
     
     # 한의원#xxx Application is online
     # [INFO] Bot is online with EzCord 0.3.7

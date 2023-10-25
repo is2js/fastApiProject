@@ -23,7 +23,8 @@ from app.libs.auth.managers import UserManager
 from app.libs.auth.oauth_clients import get_oauth_client
 from app.libs.auth.strategies import get_jwt_strategy
 from app.libs.auth.transports import get_cookie_redirect_transport
-from app.pages.exceptions import TemplateException, OAuthDeniedException, GoogleCredentialsCreateException
+from app.libs.discord.bot.ipc_client import discord_ipc_client
+from app.pages.exceptions import GoogleCredentialsCreateException
 from app.pages.oauth_callback import get_oauth_callback, OAuthAuthorizeCallback
 from app.models import Users, SnsType
 from app.utils.date_utils import D
@@ -37,6 +38,19 @@ async def index(request: Request, session: AsyncSession = Depends(db.session)):
     """
     `ELB 헬스 체크용`
     """
+
+    # request.state는 dictionary 처럼 in이나 .get(, None)은 못쓴다.
+    #   "detail": "'State' object has no attribute 'get'"
+    #   "detail": "argument of type 'State' is not iterable"
+
+    # if hasattr(request.state, 'discord_bot'):
+    #     discord_bot = request.state.discord_bot
+    if discord_bot := request.state.discord_bot:
+        print(f"discord_bot >> {discord_bot}")
+        server_response = await discord_ipc_client.request("guild_count")
+        print(f" guild_count >> {server_response.response}")
+        #  guild_count >> 2
+
 
     return "ok"
 

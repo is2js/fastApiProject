@@ -89,7 +89,7 @@
             os.environ["API_ENV"] = "local"
         os.environ["DOCKER_MODE"] = "False"
    
-       uvicorn.run("main:app", port=8010, reload=True)
+       uvicorn.run()
     ```
 
 7. 어차피 실행이 안되는데, 그 이유는 db_url 때문이다.
@@ -300,7 +300,7 @@ class Logger:
             os.environ["API_ENV"] = "local"
         os.environ["DOCKER_MODE"] = "False"
     
-        uvicorn.run("main:app", port=config.PORT, reload=config.PROJ_RELOAD)
+        uvicorn.run()
     ```
 
 14. **하지만 main내부에서, DOCKER_MODE=False를 줬어도, config객체가 생겨난 이후 준 것이라, 설정 이후 메모리에 로드되도록 import순서를 바꿔야한다.**
@@ -378,7 +378,7 @@ class Logger:
     
         app = create_app(config)
     ```
-15. main.py를 app>main.py 에서 `root > main.py`로 옮긴 뒤,  dockerfile과 main.py에서의 명령 string을 변경해준다.
+15. main.py를 app>main.py 에서 `root > main.py`로 옮긴 뒤, dockerfile과 main.py에서의 명령 string을 변경해준다.
     ```dockerfile
     #ENTRYPOINT ["uvicorn", "app.main:app"]
     ENTRYPOINT ["uvicorn", "main:app"]
@@ -386,7 +386,7 @@ class Logger:
     ```python
     elif __name__ == '__main__':
         # uvicorn.run("app.main:app", port=config.PORT, reload=config.PROJ_RELOAD)
-        uvicorn.run("main:app", port=config.PORT, reload=config.PROJ_RELOAD)
+        uvicorn.run()
     ```
     
 

@@ -96,6 +96,7 @@ app = create_app()
 2. 이제 main.py의 실행함수 uvicorn.run()내부에 `reload=`옵션을, 
     - **config.py의 conf메서드를 import해서, create_app에서 config객체를 1개 생성해놓고,**
     - **실행함수(테스트용)에서도 conf().PROJ_RELOAD로 객체생성 + 상수 이용하도록 한다.**
+
 ```python
 from app.common.config import conf
 
@@ -110,11 +111,12 @@ def create_app():
 
     return app
 
-#...
+
+# ...
 
 if __name__ == '__main__':
     # uvicorn.run("main:app", port=8010, reload=True)
-    uvicorn.run("main:app", port=8010, reload=conf().PROJ_RELOAD)
+    uvicorn.run()
 ```
 - 실행용함수는 그냥 True로 써도 된다.
 

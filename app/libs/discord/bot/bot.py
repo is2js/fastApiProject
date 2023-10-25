@@ -1,4 +1,6 @@
 import asyncio
+import traceback
+from contextlib import asynccontextmanager
 from os import environ
 from pathlib import Path
 
@@ -19,10 +21,15 @@ class DiscordBot(ezcord.Bot):
         super().__init__(intents=discord.Intents.default())
         # self.ipc = Server(self, secret_key="hani")  # test 이후 config로 변경
         self.ipc = Server(self, secret_key=DISCORD_BOT_SECRET_KEY)
+        # self.load_cogs(Path(__file__).resolve().parent / 'cogs')
 
     async def on_ready(self):
+        # /cogs폴더의 파일들을 load함.
+        self.load_cogs(Path(__file__).resolve().parent / 'cogs')
+
+        # bot server 시작
         await self.ipc.start()
-        # print(f"{self.user} Application is online")
+
         app_logger.get_logger.info(f"{self.user} Application is online")
 
     async def on_ipc_error(self, endpoint: str, exc: Exception) -> None:
@@ -83,21 +90,22 @@ class DiscordBot(ezcord.Bot):
         else:
             return {"success": False, "message": f"Guild {data.guild_id} not found."}
 
-    def init_app(self, app: FastAPI):
-        @app.on_event("startup")
-        async def start_up_discord():
-            # 연결에 실패하더라도, app은 돌아가도록
-            try:
-                self.load_cogs(Path(__file__).resolve().parent / 'cogs')
-                asyncio.create_task(self.start(DISCORD_BOT_TOKEN))
-            except discord.LoginFailure:
-                app_logger.get_logger.error('Discord bot 연결에 실패하였습니다.')
+    # def init_app(self, app: FastAPI):
+    #
+    #     @app.on_event("startup")
+    #     async def start_up_discord():
+    # self.load_cogs(Path(__file__).resolve().parent / 'cogs')
+    # await asyncio.create_task(self.start(DISCORD_BOT_TOKEN))
 
-        @app.on_event("shutdown")
-        async def shut_down_discord():
-            # websocket 연결이 끊겼으면, close시키기
-            if not self.is_closed():
-                await self.close()
+    # await self.run(token=DISCORD_BOT_TOKEN)
+
+    # @app.on_event("shutdown")
+    # async def shut_down_discord():
+    #     # websocket 연결이 끊겼으면, close시키기
+    #     if not self.is_closed():
+    #         await self.close()
+    #     ...
+    #     # await self.close()
 
 
 discord_bot = DiscordBot()
@@ -114,4 +122,6 @@ if __name__ == '__main__':
     load_dotenv()
     token = environ.get("DISCORD_BOT_TOKEN", None)
 
-    bot.run(token)
+    bot.run()
+
+    from discord import Bot

@@ -64,14 +64,31 @@ class OAuthDeniedException(BadRequestException):
 
 # 403 FORBIDDEN
 class ForbiddenException(TemplateException):
-    def __init__(self, *, code_number: [str, int] = "0", message: str = None, detail: str = None, exception: Exception = None):
+    def __init__(self, *, code_number: [str, int] = "0", message: str = None, detail: str = None,
+                 exception: Exception = None):
         if not isinstance(code_number, str):
             code_number = str(code_number)
 
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
             code=f"{status.HTTP_403_FORBIDDEN}{code_number.zfill(4)}",
-            message= message or "접근 권한이 없습니다.",
+            message=message or "접근 권한이 없습니다.",
+            detail=detail,
+            exception=exception,
+        )
+
+
+# 500 - discord bot 에러
+class DiscordBotNotConnectedException(TemplateException):
+    def __init__(self, *, code_number: [str, int] = "0", message: str = None, detail: str = None,
+                 exception: Exception = None):
+        if not isinstance(code_number, str):
+            code_number = str(code_number)
+
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code=f"{status.HTTP_500_INTERNAL_SERVER_ERROR}{code_number.zfill(4)}",
+            message=message or "Discord bot에 연결할 수 없습니다.",
             detail=detail,
             exception=exception,
         )

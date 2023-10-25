@@ -147,11 +147,14 @@ from app.libs.discord.bot.ipc_client import discord_ipc_client
 async def request_with_fastapi_optional_user_and_bot_guild_count(
         request: Request, user=Depends(optional_current_active_user)
 ) -> Request:
-
     request.state.user = user
 
-    server_response = await discord_ipc_client.request("guild_count")
-    # <ServerResponse response=1 status=OK>
-    request.state.bot_guild_count = server_response.response
+    try:
+        server_response = await discord_ipc_client.request("guild_count")
+        # <ServerResponse response=1 status=OK>
+        # [Errno 10061] Connect call failed ('127.0.0.1', 20000)
+        request.state.bot_guild_count = server_response.response
+    except Exception as e:
+        request.state.bot_guild_count = None
 
     return request

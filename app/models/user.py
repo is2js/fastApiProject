@@ -96,7 +96,7 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
 
         return None
 
-    def get_oauth_account(self, sns_type: SnsType):
+    def get_oauth_account(self, sns_type: SnsType) -> Optional[OAuthAccount]:
         """
         lazy="joined"되어 session 없이, oauth_accounts 모델에서 특정 oauth의 access_token을 얻는 메서드
         """
@@ -172,8 +172,8 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
                 )
 
             except exceptions.RefreshError:
-                # refresh 실패했다면, 해당 creds.token을 revoke 시키고, db에서도 creds관련필드 3개를 비워놓고
-                # -> get_google_creds()를 return None한다.
+                # refresh 실패했다면, 해당 creds.token을 revoke 시키고, db에서도 google_creds_json만 None으로(나머지2개는 기록)
+                # -> get_google_creds()를 return None이 되어버린다.
 
                 revoke = requests.post(
                     'https://oauth2.googleapis.com/revoke',
@@ -184,8 +184,8 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
                 await google_account.update(
                     auto_commit=True,
                     google_creds_json=None,
-                    google_creds_expiry=None,
-                    google_creds_last_refreshed=None,
+                    # google_creds_expiry=None, # early return None의 기준이 google_creds_json필드여서, 실패 기록을 남겨둔다.
+                    # google_creds_last_refreshed=None, # 실패 기록을 남겨둔다.
                 )
 
                 return None
