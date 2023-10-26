@@ -1,10 +1,11 @@
 ### discord bot 시작 위치 변경
-####  어째서인지 startup에서 더이상 작동이 안되기 시작해서 app도 무한 waiting을 하기 시작함.
+
+#### 어째서인지 startup에서 더이상 작동이 안되기 시작해서 app도 무한 waiting을 하기 시작함.
 
 1. create_app 메서드에 있던 discord_bot.init_app( )을 삭제 처리한다.
     ```python
     def create_app(config: Config):
-        #...
+        # ...
         # discord
         # discord_bot.init_app(app)
     ```
@@ -29,26 +30,35 @@
             #     ...
             #     # await self.close()
     ```
-   
+
 #### lifespan으로서, app과 생명주기를 같이하되, 내부 yield를 타고 app으로 간다.
+
 - **lifespan은 ML 모델을 app 시작 전에 미리 불러올 때 쓰이는 듯 하다.**
-    - lifespan 참고 gist: https://gist.github.com/haykkh/49ed16a9c3bbe23491139ee6225d6d09?permalink_comment_id=4289183#gistcomment-4289183
+    - lifespan 참고
+      gist: https://gist.github.com/haykkh/49ed16a9c3bbe23491139ee6225d6d09?permalink_comment_id=4289183#gistcomment-4289183
     - lifespan 참고 유튜브(fastapiEXPERT) : https://www.youtube.com/watch?v=aYOyiAUzfr0
+
 #### lifespan 강의 정리
-1. lifespan은 app객체 실행 전, app객체 생성시 들어오는 scope 속 ['lifespan']으로 전달받고 -> **`request.state`의 처음에는 비어있는 namespace에 할당될 수 있는 것 같다.**
-    ![img.png](../images/113.png)
+
+1. lifespan은 app객체 실행 전, app객체 생성시 들어오는 scope 속 ['lifespan']으로 전달받고 -> **`request.state`의 처음에는 비어있는 namespace에 할당될 수 있는
+   것 같다.**
+   ![img.png](../images/113.png)
     - django에서도 최근에는 가져간 듯 하다.
-    ![img.png](../images/114.png)
-2. `@app.on_event`와 다르게 **내부에 yield가 반드시 필요한데, yield {} dict로 생성객체를 반환해주면 `route의 Request객체에서 request.state.해당객체`를 꺼내 쓸 수 있게 된다.**
-    ![img.png](../images/115.png)
-3. request.state에서 꺼내쓸 땐, 없을 수도 있는데, state자체가 **dict가 아니라서, in으로 key검사 or .get( , None) 의 방식이 불가하여** `if not hasattr(request.state, "client")`로 라우트 내에서 예외처리를 해줄수 있다.
-    ![img.png](../images/116.png)
+      ![img.png](../images/114.png)
+2. `@app.on_event`와 다르게 **내부에 yield가 반드시 필요한데, yield {} dict로 생성객체를 반환해주면 `route의 Request객체에서 request.state.해당객체`를 꺼내 쓸
+   수 있게 된다.**
+   ![img.png](../images/115.png)
+3. request.state에서 꺼내쓸 땐, 없을 수도 있는데, state자체가 **dict가 아니라서, in으로 key검사 or .get( , None) 의 방식이 불가하여
+   ** `if not hasattr(request.state, "client")`로 라우트 내에서 예외처리를 해줄수 있다.
+   ![img.png](../images/116.png)
 4. 참고로, app.state.새필드 = 값으로 넣어주면 -> route속 Request객체.app.state에 _state필드에 담겨있으며, Request.app.state.새필드로 바로 꺼내볼 수 도 있다.
-    ![img.png](../images/117.png)
-    ![img.png](../images/118.png)
+   ![img.png](../images/117.png)
+   ![img.png](../images/118.png)
 
 #### 적용
+
 - 일본 블로그 discord + line bot: https://qiita.com/maguro-alternative/items/6f57d4cc6c9923ba6a1d
+
 1. create_app 메서드가 있는 init.py에  `@asynccontextmanager`를 이용해서, async lifespan을 정의한다.
     - 내부에서 yield를 통해, lifespan을 통해 app으로 진입된다.
     - **bot.start( token )에 실패하더라도 yield까지 갈 수 있도록 예외처리를 해준다.**
@@ -94,7 +104,7 @@
     
         app_logger.get_logger.info(f"{self.user} Application is online")
     ```
-   
+
 3. route에서 request.state에 hasattr를 확인해서 넣어준 discord_bot를 꺼내서 쓴다.
     ```python
     @router.get("/")
@@ -119,23 +129,27 @@
     # discord_bot.is_closed() >> False
     # guild_count >> 2
     ```
+
 #### middle 웨어에서 request.state.필드 = None으로 초기화면, lifespan에 넣어줬던 것이 없어져버린다.
+
 1. **매번 `.hasattr()`로 확인하지 않아도 되도록 미들웨어에서 해당 namespace를 초기화하려고 했다.**
+
 ```python
 class AccessControl(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         await self.init_state(request)
-        #...
+        # ...
+
     @staticmethod
     async def init_state(request):
-        #...
-        
+        # ...
+
         # discord bot
         request.state.discord_bot = None
 ```
 
-2. 이미 초기화됬으니 없으면  None으로서, if로 바로 확인하여 할당하고 사용해본다.
+2. 이미 초기화됬으니 없으면 None으로서, if로 바로 확인하여 할당하고 사용해본다.
     ```python
     @router.get("/")
     async def index(request: Request, session: AsyncSession = Depends(db.session)):
@@ -180,7 +194,7 @@ class AccessControl(BaseHTTPMiddleware):
         if discord_bot.is_closed():  # web socket 연결 중인지 확인
             await discord_bot.close()
     ```
-   
+
 4. **이제 hasattr()확인 없이 request.state.discord_bot을 꺼내서 None인지 판단후에 사용하면 된다.**
     ```python
     @router.get("/")
@@ -199,13 +213,16 @@ class AccessControl(BaseHTTPMiddleware):
     
         return "ok"
     ```
-   
+
 ### ipc_client에 예외처리를 하는 request를 구현하기 위해 wrapper class 만들기
 
 #### libs/discord의 exception 따로 정의하기(순환 import 에러 방지)
+
 - app/libs/discord/bot/exceptions.py를 생성하고 기본 Exception폼을 가져와 정의한다.
+
 ```python
 from starlette import status
+
 
 class DiscordException(Exception):
     status_code: int
@@ -247,8 +264,8 @@ class DiscordBotRequestException(DiscordException):
         )
 
 ```
-#### request를 재정의한 IPC Wrapper클래스 만들기
 
+#### request를 재정의한 IPC Wrapper클래스 만들기
 
 ```python
 # app/libs/discord/bot/ipc_client.py
@@ -282,28 +299,30 @@ discord_ipc_client = DiscordIPCWrapper(secret_key=DISCORD_BOT_SECRET_KEY)
 ```
 
 #### midleware에서 커버되는 Exception으로 추가해주기
+
 ```python
 # app/errors/exception_handler.py
 async def exception_handler(exception: Exception):
-
     # if not isinstance(exception, (APIException, SQLAlchemyException, DBException, TemplateException):
     if not isinstance(exception, (APIException, SQLAlchemyException, DBException, TemplateException, DiscordException)):
         exception = APIException(exception=exception, detail=str(exception))
     ...
     return exception
 ```
+
 ```python
 class AccessControl(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        #...
+        # ...
         try:
-            #...
+        # ...
         except Exception as e:
 
             # error: [APIException, SQLAlchemyException, DBException, TemplateException] = await exception_handler(e)
 
-            error: [APIException, SQLAlchemyException, DBException, TemplateException, DiscordException] = await exception_handler(e)
+            error: [APIException, SQLAlchemyException, DBException, TemplateException,
+                    DiscordException] = await exception_handler(e)
 
             # JSONResponse의 content=로 넣을 error 객체를 dict로 변환한다.
             error_dict = dict(
@@ -315,7 +334,116 @@ class AccessControl(BaseHTTPMiddleware):
             # if isinstance(error, (APIException, SQLAlchemyException, DBException)):
             if isinstance(error, (APIException, SQLAlchemyException, DBException, DiscordException)):
                 response = JSONResponse(status_code=error.status_code, content=error_dict)
-            #...
+            # ...
+```
+
+### lifespan 도입이후로는, 모든 app의 startup이벤트를 lifespan으로 옮겨야 작동한다.
+
+- 각종 fastapi 잇슈
+    - **lifespan을 도입한 이후로는 startup, shutdown이 작동하지 않음.**
+    - gpt: lifespan 기능을 사용하면 기존의 이벤트 핸들러들과 충돌할 수 있습니다. 이를 방지하기 위해서는 FastAPI의 기본 생명주기 이벤트를 사용하지 않도록 설정해야 합니다.
+        - lifespan을 사용하는 경우에는 FastAPI의 on_event("startup")을 사용하지 않아야 합니다. 대신에 lifespan 함수 내부에서 asyncio.get_event_loop()
+          .create_task()를 사용하여 비동기적으로 초기화 작업을 수행할 수 있습니다.
+- lifespan 설명: https://lewoudar.medium.com/fastapi-lifespan-events-42823916e47f
+
+#### sqlalchemy db객체 .init_app -> life span으로 이동
+```python
+def create_app(config: Config):
+
+    # database -> lifespan으로 이동
+    # db.init_app(app)
+```
+```python
+class SQLAlchemy(metaclass=SingletonMetaClass):
+    ...
+    # def init_app(self, app: FastAPI):
+    #     """
+    #     :param app:
+    #     :return:
+    #     """
+    # 
+    #     @app.on_event("startup")
+    #     async def start_up():
+    #         print(f"startup >> ")
+    # 
+    #         # 테이블 생성 추가
+    #         async with self.engine.begin() as conn:
+    #             from app.models import Users, UserCalendars  # , UserCalendarEvents, UserCalendarEventAttendees
+    #             await conn.run_sync(Base.metadata.create_all)
+    #             logging.info("DB create_all.")
+    # 
+    #         print(f"테이블 생성 끝 >>")
+    # 
+    # 
+    #         # 초기 Role 모델 -> 없으면 생성
+    #         from app.models import Roles
+    #         if not await Roles.row_count():
+    #             await Roles.insert_roles()
+    # 
+    #         # TODO 관리자email기준으로 관리자 계정 생성
+    #         # from app.models import Users
+    #         # print(f"await Users.get(1) >> {await Users.get(1)}")
+    # 
+    #     @app.on_event("shutdown")
+    #     async def shut_down():
+    #         print(f"shutdown >>")
+    # 
+    #         # self._Session.close()
+    #         await self._scoped_session.remove()  # async_scoped_session은 remove까지 꼭 해줘야한다.
+    #         await self._async_engine.dispose()
+    #         logging.info("DB disconnected.")
+```
+```python
+# https://gist.github.com/haykkh/49ed16a9c3bbe23491139ee6225d6d09?permalink_comment_id=4289183#gistcomment-4289183
+# => 어떤 사람은 실패했지만 나는 잘 작동함.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Load the ML model
+
+    # Load discord bot
+    # try 일본사이트 참고: https://qiita.com/maguro-alternative/items/6f57d4cc6c9923ba6a1d
+    try:
+        asyncio.create_task(discord_bot.start(DISCORD_BOT_TOKEN))
+    except discord.LoginFailure:
+        app_logger.get_logger.error('Discord bot 로그인에 실패하였습니다.')
+        # await discord_bot.close()
+    except discord.HTTPException as e:
+        # traceback.print_exc()
+        app_logger.get_logger.info('Discord bot의 Http연결에 실패하였습니다.')
+    except KeyboardInterrupt:
+        app_logger.get_logger.info('Discord bot이 예상치 못하게 종료되었습니다.')
+        await discord_bot.close()
+
+    # DB create
+    async with db.engine.begin() as conn:
+        from app.models import Users, UserCalendars  # , UserCalendarEvents, UserCalendarEventAttendees
+        await conn.run_sync(Base.metadata.create_all)
+        logging.info("DB create_all.")
+
+    # default Role 데이터 create
+    from app.models import Roles
+    if not await Roles.row_count():
+        await Roles.insert_roles()
+
+    # TODO: 관리자 email기준으로 관리자 계정 생성
+    # from app.models import Users
+    # print(f"await Users.get(1) >> {await Users.get(1)}")
+
+    # print(f"discord_bot.is_closed() in lifespan >> {discord_bot.is_closed()}")
+    # => is_ready()로 확인하여 초기화한다.
+    yield {
+        'discord_bot': discord_bot if discord_bot.is_ready() else None
+    }
+
+    # Unload the ML model
+    # Unload discord bot
+    if discord_bot.is_closed():  # web socket 연결 중인지 확인
+        await discord_bot.close()
+
+    # delete session
+    await db._scoped_session.remove()  # async_scoped_session은 remove까지 꼭 해줘야한다.
+    await db._async_engine.dispose()
+    logging.info("DB disconnected.")
 ```
 ## DOCEKR, 설정 관련
 

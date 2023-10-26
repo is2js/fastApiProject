@@ -80,3 +80,8 @@ class RoleName(str, Enum):
     @property
     def max_permission(self) -> Permissions:
         return max(self.get_role_permission_set(), key=lambda x: x.value)
+
+
+class CalendarType(str, Enum):
+    DEFAULT = "default"
+    GOOGLE = "google"

@@ -193,3 +193,32 @@ class CRUDMixin(ObjectMixin):
         await self.set_session(session=session)
 
         return await self.remove(auto_commit=auto_commit)
+
+    @class_or_instance_method
+    async def create_or_update(cls, session: AsyncSession = None, auto_commit=False, refresh=False, **kwargs):
+        # create 전에, 조회 후 filter_by -> True면 update로 처리
+        # 1) get에서 조회하던 unique 칼럼 들어왔는지 확인
+        if not any(col_name in cls.unique_names for col_name in kwargs.keys()):
+            raise KeyError(f'해당 데이터 존재 여부 확인을 위한 unique 칼럼을 적어도 하나 입력해주세요.')
+
+        # 2) unique칼럼명 가져오기 (첫번재 칼럼)
+        first_unique_col_name = cls.unique_names[0]
+
+        # 3) unique칼럼명에 해당하는 kwargs의 값 뽑아 조회
+        target_obj = await cls.filter_by(name=kwargs[first_unique_col_name]).first()
+        # 4) 존재하면 update로
+        if target_obj:
+            await target_obj.update(session=session, auto_commit=auto_commit, refresh=refresh, **kwargs)
+            return target_obj
+
+        # 5) 존재안하면 create 로직
+        obj = await cls.create_obj(session=session)
+        if kwargs:
+            obj.fill(**kwargs)
+
+        return await obj.save(auto_commit=auto_commit, refresh=refresh)
+
+
+    @create_or_update.instancemethod
+    async def create_or_update(self, session: AsyncSession = None, auto_commit=False, refresh=False, **kwargs):
+        raise NotImplementedError(f'객체 상태에서 {self.__class__.get.__name__}를 호출 할 수 없습니다.')

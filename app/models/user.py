@@ -22,6 +22,7 @@ from sqlalchemy.orm import relationship
 
 from app.common.consts import MAX_API_KEY_COUNT, MAX_API_WHITE_LIST_COUNT
 from app.errors.exceptions import MaxAPIKeyCountException, MaxWhiteListCountException, NoKeyMatchException
+from app.libs.auth.oauth_clients.google import google_scopes_to_service_name
 
 from app.models.base import BaseModel
 from app.models.enums import UserStatus, ApiKeyStatus, SnsType, Gender, RoleName, Permissions
@@ -85,6 +86,11 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
                         uselist=False,
                         lazy='subquery',  # lazy: _LazyLoadArgumentType = "select",
                         )
+
+    calendars = relationship("UserCalendars", back_populates="user",
+                             cascade="all, delete-orphan",
+                             lazy=True  # 'select'로서 자동load아님.
+                             )
 
     def get_oauth_access_token(self, sns_type: SnsType):
         """
@@ -211,11 +217,12 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
 
         return False
 
-    async def get_google_service(self, service_name: str, api_version: str = 'v3'):
-        creds = await self.get_google_creds()
-
-        if not creds:
+    async def get_google_service(self, scopes: List[str], api_version: str = 'v3'):
+        if not (creds := await self.get_google_creds()):
             return None
+
+        # Scopes to service name
+        service_name = google_scopes_to_service_name(scopes)
 
         service = build(service_name, api_version, credentials=creds)
 
@@ -272,8 +279,8 @@ class Roles(BaseModel):
 
 
 class ApiKeys(BaseModel):
-    created_at = Column(DateTime, nullable=False, default=func.utc_timestamp())
-    updated_at = Column(DateTime, nullable=False, default=func.utc_timestamp(), onupdate=func.utc_timestamp())
+    # created_at = Column(DateTime, nullable=False, default=func.utc_timestamp())
+    # updated_at = Column(DateTime, nullable=False, default=func.utc_timestamp(), onupdate=func.utc_timestamp())
 
     access_key = Column(String(length=64), nullable=False, index=True)
     secret_key = Column(String(length=64), nullable=False)

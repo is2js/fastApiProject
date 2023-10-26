@@ -25,7 +25,7 @@ service_name_and_scopes_map = dict(
 )
 
 
-def get_google_service_name_by_scopes(google_scopes: List[str]):
+def google_scopes_to_service_name(google_scopes: List[str]):
     for service_name, mapped_scopes in service_name_and_scopes_map.items():
         if all(scope in mapped_scopes for scope in google_scopes):
             return service_name

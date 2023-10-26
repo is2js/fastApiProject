@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,7 +13,7 @@ from starlette.staticfiles import StaticFiles
 from app import api, pages
 from app.api.dependencies.auth import current_active_user, request_with_fastapi_optional_user
 from app.common.config import Config, DISCORD_BOT_TOKEN, JWT_SECRET
-from app.database.conn import db
+from app.database.conn import db, Base
 from app.libs.discord.bot.bot import discord_bot
 
 from app.middlewares.access_control import AccessControl
@@ -43,18 +44,20 @@ async def lifespan(app: FastAPI):
         app_logger.get_logger.info('Discord bot이 예상치 못하게 종료되었습니다.')
         await discord_bot.close()
 
-    # lifespan이 request.staet.xxx로 사용 가능하다면, ipc_client도 여기서 만들어 반환해주고
-    # -> 종료도 같이 종료되고, 필요한 route마다 빼서 쓸 수 있게 하자.
-    # -> 지금은 app/api/dependencies/auth.py에서 depends 로 정의 -> discord route에서 아래와 같이 user주입과 동시에 주입
-    # -> dependencies=[Depends(request_with_fastapi_optional_user_and_bot_guild_count)]
-    #     try:
-    #         server_response = await discord_ipc_client.request("guild_count")
-    #         # <ServerResponse response=1 status=OK>
-    #         # [Errno 10061] Connect call failed ('127.0.0.1', 20000)
-    #         request.state.bot_guild_count = server_response.response
-    #     except Exception as e:
-    #         request.state.bot_guild_count = None
+    # DB create
+    async with db.engine.begin() as conn:
+        from app.models import Users, UserCalendars  # , UserCalendarEvents, UserCalendarEventAttendees
+        await conn.run_sync(Base.metadata.create_all)
+        logging.info("DB create_all.")
 
+    # default Role 데이터 create
+    from app.models import Roles
+    if not await Roles.row_count():
+        await Roles.insert_roles()
+
+    # TODO: 관리자 email기준으로 관리자 계정 생성
+    # from app.models import Users
+    # print(f"await Users.get(1) >> {await Users.get(1)}")
 
     # print(f"discord_bot.is_closed() in lifespan >> {discord_bot.is_closed()}")
     # => is_ready()로 확인하여 초기화한다.
@@ -66,6 +69,11 @@ async def lifespan(app: FastAPI):
     # Unload discord bot
     if discord_bot.is_closed():  # web socket 연결 중인지 확인
         await discord_bot.close()
+
+    # delete session
+    await db._scoped_session.remove()  # async_scoped_session은 remove까지 꼭 해줘야한다.
+    await db._async_engine.dispose()
+    logging.info("DB disconnected.")
 
 
 def create_app(config: Config):
@@ -85,8 +93,8 @@ def create_app(config: Config):
     static_directory = Path(__file__).resolve().parent / 'static'
     app.mount('/static', StaticFiles(directory=static_directory), name='static')
 
-    # database
-    db.init_app(app)
+    # database -> lifespan으로 이동
+    # db.init_app(app)
 
     # 미들웨어 추가 (실행순서는 반대)
     app.add_middleware(AccessControl)

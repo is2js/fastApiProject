@@ -54,8 +54,8 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
         self.create_database_and_user()
 
         # 2. 혹시 app객체가 안들어올 경우만, 빈 객체상태에서 메서드로 초기화할 수 있다.
-        if app is not None:
-            self.init_app(app)
+        # if app is not None:
+        #     self.init_app(app)
 
     def create_database_and_user(self):
         SYNC_DB_URL: str = config.DB_URL.replace("aiomysql", "pymysql") \
@@ -106,34 +106,42 @@ class SQLAlchemy(metaclass=SingletonMetaClass):
     def engine(self):
         return self._async_engine
 
-    def init_app(self, app: FastAPI):
-        """
-        :param app:
-        :return:
-        """
-
-        @app.on_event("startup")
-        async def start_up():
-            # 테이블 생성 추가
-            async with self.engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
-                logging.info("DB create_all.")
-
-            # 초기 모델 -> 없으면 생성
-            from app.models import Roles
-            if not await Roles.row_count():
-                await Roles.insert_roles()
-
-            # from app.models import Users
-            # print(f"await Users.get(1) >> {await Users.get(1)}")
-
-
-        @app.on_event("shutdown")
-        async def shut_down():
-            # self._Session.close()
-            await self._scoped_session.remove()  # async_scoped_session은 remove까지 꼭 해줘야한다.
-            await self._async_engine.dispose()
-            logging.info("DB disconnected.")
+    # def init_app(self, app: FastAPI):
+    #     """
+    #     :param app:
+    #     :return:
+    #     """
+    #
+    #     @app.on_event("startup")
+    #     async def start_up():
+    #         print(f"startup >> ")
+    #
+    #         # 테이블 생성 추가
+    #         async with self.engine.begin() as conn:
+    #             from app.models import Users, UserCalendars  # , UserCalendarEvents, UserCalendarEventAttendees
+    #             await conn.run_sync(Base.metadata.create_all)
+    #             logging.info("DB create_all.")
+    #
+    #         print(f"테이블 생성 끝 >>")
+    #
+    #
+    #         # 초기 Role 모델 -> 없으면 생성
+    #         from app.models import Roles
+    #         if not await Roles.row_count():
+    #             await Roles.insert_roles()
+    #
+    #         # TODO 관리자email기준으로 관리자 계정 생성
+    #         # from app.models import Users
+    #         # print(f"await Users.get(1) >> {await Users.get(1)}")
+    #
+    #     @app.on_event("shutdown")
+    #     async def shut_down():
+    #         print(f"shutdown >>")
+    #
+    #         # self._Session.close()
+    #         await self._scoped_session.remove()  # async_scoped_session은 remove까지 꼭 해줘야한다.
+    #         await self._async_engine.dispose()
+    #         logging.info("DB disconnected.")
 
 
 db = SQLAlchemy(**asdict(config))

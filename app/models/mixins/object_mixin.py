@@ -310,8 +310,8 @@ class ObjectMixin(BaseMixin):
     @classmethod
     def check_pk_or_unique_keyword(cls, **kwargs):
         identity_columns = cls.primary_key_names + cls.unique_names
-        if not all(attr in identity_columns for attr in kwargs.keys()):
-            raise KeyError(f'primary key or unique 칼럼을 입력해주세요.')
+        if not any(attr in identity_columns for attr in kwargs.keys()):
+            raise KeyError(f'primary key or unique 칼럼을 적어도 하나 입력해주세요.')
 
     async def count(self, session: AsyncSession = None):
         # count는, 자체발급세션에서도, 단순 마지막 처리가 아닌, 중간처리용으로 호출할 수 있기 때문에
