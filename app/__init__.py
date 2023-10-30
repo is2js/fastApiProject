@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 
     # DB create
     async with db.engine.begin() as conn:
-        from app.models import Users, UserCalendars  # , UserCalendarEvents, UserCalendarEventAttendees
+        from app.models import Users, UserCalendars, CalendarSyncs  # , UserCalendarEvents, UserCalendarEventAttendees
         await conn.run_sync(Base.metadata.create_all)
         logging.info("DB create_all.")
 

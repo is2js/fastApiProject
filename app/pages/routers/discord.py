@@ -339,7 +339,7 @@ async def get_guild(request: Request, guild_id: int):
 
 @router.post("/guilds/delete")
 @oauth_login_required(SnsType.DISCORD)
-async def delete_guild(
+async def hx_delete_guild(
         request: Request,
         # guild_id: int = Form(...),
         # body: GuildLeaveRequest, # 422 Entity error <- hx_vals를 pydantic이 route에서 바로 못받는다.

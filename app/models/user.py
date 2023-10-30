@@ -92,6 +92,11 @@ class Users(BaseModel, SQLAlchemyBaseUserTable[int]):
                              lazy=True  # 'select'로서 자동load아님.
                              )
 
+    calendar_syncs = relationship("CalendarSyncs", back_populates="user",
+                             cascade="all, delete-orphan",
+                             lazy=True  # 'select'로서 자동load아님.
+                             )
+
     def get_oauth_access_token(self, sns_type: SnsType):
         """
         lazy="joined"되어 session 없이, oauth_accounts 모델에서 특정 oauth의 access_token을 얻는 메서드

@@ -11,7 +11,7 @@
             <button class="btn btn-sm btn-light">뒤로가기</button>
         </a>
         <button class='btn btn-sm btn-auth'
-                hx-post='{{ url_for("delete_guild") }}'
+                hx-post='{{ url_for("hx_delete_guild") }}'
                 hx-vals='{"guild_id": "{{ id }}"}'
         >
             서버 Bot 제거

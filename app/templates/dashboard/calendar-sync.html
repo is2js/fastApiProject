@@ -21,11 +21,37 @@
                 {% for calendar in calendars %}
                     <tr>
                         <th>{{ calendar.name }}</th>
-                        <th>{{ calendar.google_calendar_id}}</th>
+                        <th>{{ calendar.google_calendar_id }}</th>
+                        {#                    <th>{{ calendar.user_id }}</th>#}
+                        <th>
+                            <button class='btn btn-sm btn-auth'
+                                    hx-post='{{ url_for("hx_create_calendar_syncs") }}'
+                                    hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ calendar.id }}"}'
+                            >
+                                연동
+                            </button>
+                        </th>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="row mt-3 justify-content-center">
+            <h6> Sync 캘린더 목록</h6>
+            <table style="border: 1px solid; width: 80%;">
+                <tr>
+                    <th>Calendar Name</th>
+                    <th>Calendar ID</th>
+                    <th>Action</th>
+                </tr>
+                {% for synced_calendar in synced_calendars %}
+                    <tr>
+                        <th>{{ synced_calendar.name }}</th>
+                        <th>{{ synced_calendar.google_calendar_id }}</th>
                         {#                    <th>{{ calendar.user_id }}</th>#}
                         <th>
                             {#<a href="{{  }} 'view-calendar-raw-events' internal_id=calendar.internal_calendar_id %}">{{ calendar.google_calendar_id }}</a>#}
-                            연동
+                            연동 취소
                         </th>
                     </tr>
                 {% endfor %}
