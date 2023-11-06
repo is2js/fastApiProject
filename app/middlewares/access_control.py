@@ -1,11 +1,10 @@
 import time
 from typing import Optional
-from urllib.parse import urlencode
 
 from starlette.datastructures import Headers, QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response, JSONResponse, RedirectResponse, HTMLResponse
+from starlette.responses import Response, JSONResponse
 
 from app.common.config import config
 from app.common.consts import EXCEPT_PATH_REGEX, EXCEPT_PATH_LIST, SERVICE_PATH_REGEX, API_PATH_REGEX
@@ -18,11 +17,10 @@ from app.libs.discord.bot.exceptions import DiscordException
 from app.models import ApiKeys, Users
 from app.models.mixins.errors import SQLAlchemyException
 from app.pages.exceptions import TemplateException
-from app.pages.routers import templates
 from app.schemas import UserToken
 from app.utils.auth_utils import url_pattern_check, decode_token
 from app.utils.date_utils import D
-from app.utils.http_utils import render, redirect
+from app.utils.http_utils import redirect
 from app.utils.logger import app_logger, db_logger
 from app.utils.param_utils import hash_query_string
 

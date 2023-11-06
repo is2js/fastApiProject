@@ -4,10 +4,10 @@
     <th>{{ new_synced_calendar.google_calendar_id }}</th>
     <th>
         <button
-                id="syncCancelBtn_{{ loop_index }}"
+                id="syncCancelBtn_{{ new_synced_calendar.id }}"
                 class='btn btn-sm btn-danger'
                 hx-post='{{ url_for("hx_delete_calendar_syncs") }}'
-                hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ calendar_id }}", "loop_index": "{{ loop_index }}" }'
+                hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ calendar_id }}"}'
                 hx-target="#syncedCalendarTable"
                 hx-swap="outerHTML"
         >
@@ -19,7 +19,7 @@
 
 {# 내 구글 캘린더 - 연동 버튼 => 연동 중으로 바꾸기 (현재 element for hx-swap-oob) #}
 <button
-        id="syncBtn_{{ loop_index }}"
+        id="syncBtn_{{ new_synced_calendar.id }}"
         class='btn btn-sm btn-success'
         hx-swap-oob="true"
 >

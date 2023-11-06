@@ -129,6 +129,21 @@ def hx_vals_schema(schema: BaseModel):
             except Exception as e:
                 errors = [{"loc": "non_field_error", "msg": "Unknown error"}]
 
-        return data, errors
+        # [{'type': 'missing', 'loc': ['loop_index'], 'msg': 'Field required', 'input': {'user_id': '3', 'calendar_id': '20'}, 'url': 'https://errors.pydantic.dev/2.3/v/missing'}]
+        # return data, errors
+
+        #     {% for error in errors %}
+        #         <li>{% if error.loc[0] != "__root__" %}<b>{{ error.loc[0] }}</b>:{% endif %} {{ error.msg }}</li>
+        #     {% endfor %}
+        error_infos = ""
+        for error in errors:
+            error_info = "<li>"
+            if error.get('loc')[0] != "__root__":
+                error_infos += f"{error.get('loc')[0]}: {error.get('msg')}"
+            else:
+                error_infos += f"{error.get('msg')}"
+            error_info += "</li>"
+
+        return data, error_infos
 
     return bytes_body_to_schema

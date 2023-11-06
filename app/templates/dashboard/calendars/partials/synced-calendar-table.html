@@ -16,10 +16,10 @@
 </table>
 
 {# 연동 취소후, 해당 id에 대응하는 연동버튼을 oob로서 대체시킨다. #}
-<button id="syncBtn_{{ loop_index }}"
+<button id="syncBtn_{{ calendar_id }}"
         class='btn btn-sm btn-auth'
         hx-post='{{ url_for("hx_create_calendar_syncs") }}'
-        hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ calendar_id }}", "loop_index": "{{ loop_index }}" }'
+        hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ calendar_id }}"}'
         hx-target="#syncedCalendarTable"
         hx-swap="beforeend swap:1s"
         hx-swap-oob="true"

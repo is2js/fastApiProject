@@ -339,14 +339,18 @@ async def hx_delete_guild(
         # body = Body(...),
         # body >> b'guild_id=1161106117141725284&member_count=3'
         # body=Depends(hx_vals_schema(GuildLeaveRequest)),
-        data_and_errors=Depends(hx_vals_schema(GuildLeaveRequest)),
+        data_and_error_infos=Depends(hx_vals_schema(GuildLeaveRequest)),
         is_htmx=Depends(is_htmx),
 ):
     # print(f"body >> {body}")
     # body >> guild_id=1161106117141725284
     # body >> guild_id=1161106117141725284 member_count=3
 
-    data, errors = data_and_errors
+    data, error_infos = data_and_error_infos
+    if len(error_infos) > 0:
+        error_endpoint = request.url_for('errors', status_code=400)
+        error_endpoint = error_endpoint.include_query_params(message=error_infos)
+        return redirect(error_endpoint, is_htmx=is_htmx)
 
     # leave_guild = await discord_ipc_client.request('leave_guild', guild_id=guild_id)
     leave_guild = await discord_ipc_client.request('leave_guild', guild_id=data.get('guild_id'))

@@ -402,8 +402,8 @@ async def hx_create_calendar_syncs(
     ```
    ![img.png](../images/129.png)
 
-
 #### 내 구글캘린더의 연동 중 btn은 클릭안되도록 하기 + 버그 고치기
+
 - target외 자체적으로 바뀌는 것으로서 id 동일 및 hx-swap-oob="true"는 유지하되, hx-post, hx-vals, hx-target, hx-swap을 제거한다.
 - **현재 연동 btn의 `id`가 모두 동일해서, 2번째 것을 연동해도, 첫번째 id가 swap-oob="true"가 적용되어 첫번째 row의 버튼이 바뀐다.**
 
@@ -439,7 +439,7 @@ async def hx_create_calendar_syncs(
         연동 중
     </button>
     ```
-   
+
 2. **하지만, partials의 context에는 loop.index가 없기 때문에 `loop.index`도 `hx-vals` -> `Schema`를 통해 전해줘야한다.**
     ```html
     {% for calendar in calendars %}
@@ -479,7 +479,7 @@ async def hx_create_calendar_syncs(
     ```python
     @router.post("/calendar_sync")
     async def hx_create_calendar_syncs(
-        #...
+        # ...
         return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
                       context={
                           'new_synced_calendar': new_synced_calendar,
@@ -488,7 +488,7 @@ async def hx_create_calendar_syncs(
                           'loop_index': data.get('loop_index'),
                       })
     ```
-   
+
 3. 연동 취소버튼도 loop_index가 적용되어야할 것 같다.
     ```html
     {#synced calendar - add row for hx-target#}
@@ -519,8 +519,9 @@ async def hx_create_calendar_syncs(
         연동 중
     </button>
     ```
-   
+
 #### 싱크 캘린더의 연동취소버튼 -> 내 구글캘린더 (연동 중 -> 연동)으로 변경
+
 - 연동취소를 누를 때, syncedCalendarTable이 partials로 render되는데, **여기에 `oob`로서, 연동으로 다시 바꾼다.**
 - 연동버튼의 id와 동일한 loop_index를 사용해서 oob로 바꾼다.
 
@@ -538,7 +539,7 @@ async def hx_create_calendar_syncs(
         연동
     </button>
     ```
-   
+
 2. 삭제 route에서 schema로 넘어온 data.get('loop_index') 외 바뀔 연동버튼을 구성하는 user_id, calendar_id를 context에 추가한다.
     ```python
     @router.post("/calendar_sync_cancel")
@@ -549,7 +550,7 @@ async def hx_create_calendar_syncs(
     ):
         data, errors = data_and_errors
     
-        #...
+        # ...
         return render(request, "dashboard/calendars/partials/synced-calendar-table.html",
                       context={
                           'synced_calendars': synced_calendars,
@@ -558,14 +559,15 @@ async def hx_create_calendar_syncs(
                           'loop_index': data.get('loop_index'),
                       })
     ```
-   
+
 #### 이제 no paritals 최초 render되는 calnedar-sync.html를 조건에 따라 연동/연동중/연동취소 등이 반영되게 한다.
+
 - 만약 해당 user가 event모델의 전체데이터에 포함되었다면, `구독취소`가, 그렇지 않다면, `구독`버튼이 나오게 하는 것처럼 수행한다.
 
 1. `/calendar_sync` route에서는 calendars와 synced_calendars가 context로 보내지는데,
     - for calendar로 돌 때, `if` synced_calendars에 포함되어 있으면, `연동 중` / `else` 포함안되어있으면 기존의 `연동`버튼이 나오게 한다.
     - 연동 중 버튼은, `partials/synced-calendar-tr.html`속에 있던, 새 synced row 외 `oob`인 `syncBtn_`의 연동중 버튼을 복사해서 넣어주면 된다.
-       - 이 때, loop_index -> loop.index로 고쳐준다. 
+        - 이 때, loop_index -> loop.index로 고쳐준다.
     - **이 때, `oob`는 떼고 붙혀넣어준다.**
     ```html
     {% for calendar in calendars %}
@@ -597,12 +599,13 @@ async def hx_create_calendar_syncs(
         </tr>
     {% endfor %}
     ```
-    ![img.png](../images/130.png)
+   ![img.png](../images/130.png)
 
 
 2. 또한, 연동 취소버튼도, tr 추가될 때 나타나는 것으로 바꿔준다.
     - 이 때, user_id / calendar_id 는 `.id`로 바꿔주는데, **`loop_index는 synced_calendars가 아니라, calendars의 index가 필요한상황`이다**
-       - **btn의 id에 들어갈 index는 `위쪽 내 구글캘린더의 calendars의 loop.index`여야만, 삭제시, 연동중 -> 연동으로 바뀌게 되어 `synced_calendar`의 `loop.index`는 중요치 않다**
+        - **btn의 id에 들어갈 index는 `위쪽 내 구글캘린더의 calendars의 loop.index`여야만, 삭제시, 연동중 -> 연동으로 바뀌게 되어 `synced_calendar`
+          의 `loop.index`는 중요치 않다**
     - **하지만, 위쪽 table의 반복문 속 loop.index를 사용할 수 없어서 `일단은 loop_index: "0"`으로 넘겨주고 백엔드에서 검색하게 한다.**
     - **Schema의 Field자체가 값이 없으면 에러가 나는 구조인 상태다.**
     ```html
@@ -625,7 +628,7 @@ async def hx_create_calendar_syncs(
         </tr>
     {% endfor %}
     ```
-   
+
 
 3. backend에서는 loop_index가 0으로 넘어올 경우, 내 구글캘린더에서 그 순서를 조회하여 loop_index로 넣어준다.
     ```python
@@ -680,8 +683,11 @@ async def hx_create_calendar_syncs(
                           'loop_index': synced_btn_id,
                       })
     ```
-#### oob는 htmx render에 id만 똑같으면 바로 대체시키는 (꼭 자신요소x) 기능이다.   
-4. 이제 연동취소를 누를 때, 1개 요소 삭제가 아니라, 전체 table을 render하게 되는데, **이 때 `연동 중`인 `id=syncBtn_{{loop_index}}`를 `oob`로서, `연동`으로 바꾸도록 추가한다.**
+
+#### oob는 htmx render에 id만 똑같으면 바로 대체시키는 (꼭 자신요소x) 기능이다.
+
+4. 이제 연동취소를 누를 때, 1개 요소 삭제가 아니라, 전체 table을 render하게 되는데, **이 때 `연동 중`인 `id=syncBtn_{{loop_index}}`를 `oob`로서, `연동`으로 바꾸도록
+   추가한다.**
     ```html
     <table style="border: 1px solid; width: 80%;" id="syncedCalendarTable">
         <tr>
@@ -712,8 +718,129 @@ async def hx_create_calendar_syncs(
         연동
     </button>
     ```
+
+### 리팩토링: 둘다 calendar를 반영하는 것이므로, id="btn_{{loop.index}}" 대신 그냥 id="btn_{{Calendar객체.id}}"를 사용하면, loop_index를 넘길 필요가 없다?!
+
+1. html의 모든 loop_index, loop.index를 `calendar.id로 대체하며, 없는 경우 넘어오는 calendar_id`로 대체한다.
+2. Schema들에서 loop_index를 제거한다.
+3. endpoint에서 calendar순서조회를 삭제하고, loop_index context도 제거한다.
+4.
+
+### hx_vals_schema에 에러가 발견될 때 처리하기
+
+- **Schema의 Field()의 type을 Optional로도 주지 않는다면, `data`는 안채워지고, `errors`가 생기게 된다.**
+    - `[{'type': 'missing', 'loc': ['loop_index'], 'msg': 'Field required', 'input': {'user_id': '3', 'calendar_id': '19'}, 'url': 'https://errors.pydantic.dev/2.3/v/missing'}]`
+- **이 때, TemplateException을 발생시켜서, 미들웨어에서 errors.html을 띄우면, htmx의 결과로서 target으로 errors.html 렌더결과가 들어가버린다.**
+  ![img.png](../images/131.png)
+- **htmx요청의 에러는, `결과물 자리에 error html 렌더`가 가능한 상황이면, error 렌더를 해줄 수 있으나**
+- **나의 경우에는, errors.html의 message로 전달하려고 한다.**
+    - https://github.dev/codingforentrepreneurs/video-membership 여기를 참고한다.
+
+1. `hx_vals_schema` 디펜던시에서 return data, errors를 튜플을 반환했던 것을
+    - **`error_infos`의 각 요소들을 li태그로 string연결한 요소를 만든다.**
+    - 이 때, 필드(loc[0])가 `__root__`가 뜨면, msg만 전달하고 그외에는 필드명: msg를 전달하게 한다.
+    ```python
+    def hx_vals_schema(schema: BaseModel):
+        def bytes_body_to_schema(body: bytes = Body(...)):
+            # print(f"body >> {body}")
+            # body >> b'guild_id=1161106117141725284'
+            # body >> b'guild_id=1161106117141725284&member_count=3'
+    
+            # bytes.decode() -> 문자열로 디코딩
+            # body_str = body.decode("utf-8")
+            # body_str >> guild_id=1161106117141725284
+    
+            form_fields = {}
+            for param in body.decode('utf-8').split('&'):
+                key, value = param.split('=')
+                form_fields[key] = value
+    
+            # form_fields >> {'guild_id': '1161106117141725284'}
+            # form_fields >> {'guild_id': '1161106117141725284', 'member_count': '3'}
+            # return form_fields
+    
+            # return schema(**form_fields)
+    
+            data = {}
+            errors = []
+            error_str = None
+    
+            try:
+                data = schema(**form_fields).model_dump()
+            # except error_wrappers.ValidationError as e:
+            # `pydantic.error_wrappers:ValidationError` has been moved to `pydantic:ValidationError`.
+            #   warnings.warn(f'`{import_path}` has been moved to `{new_location}`.')
+            except ValidationError as e:
+                error_str = e.json()
+    
+            if error_str is not None:
+                try:
+                    errors = json.loads(error_str)
+                except Exception as e:
+                    errors = [{"loc": "non_field_error", "msg": "Unknown error"}]
+    
+            # [{'type': 'missing', 'loc': ['loop_index'], 'msg': 'Field required', 'input': {'user_id': '3', 'calendar_id': '20'}, 'url': 'https://errors.pydantic.dev/2.3/v/missing'}]
+            # return data, errors
+    
+            #     {% for error in errors %}
+            #         <li>{% if error.loc[0] != "__root__" %}<b>{{ error.loc[0] }}</b>:{% endif %} {{ error.msg }}</li>
+            #     {% endfor %}
+            error_infos = ""
+            for error in errors:
+                error_info = "<li>"
+                if error.get('loc')[0] != "__root__":
+                    error_infos += f"{error.get('loc')[0]}: {error.get('msg')}"
+                else:
+                    error_infos += f"{error.get('msg')}"
+                error_info += "</li>"
+    
+            return data, error_infos
+    
+        return bytes_body_to_schema
+    ```
    
-### 리팩토링: id="btn_{{loop.index}}" 대신 그냥 id="btn_{{Calendar객체.id}}"를 사용하면, 더 편해진다.
+
+2. route의 depends로 반환받은 errors의 길이를 확인하는 것은 list(errors)나 string(error_infos)나 동일하다
+    - **이 때, `redriect(, is_htmx=)`를 줘서, 결과물에 갖다 꼽는게 아니라, redirect되게 만든다.**
+    - errors.html + ?message= 를 쿼리파라미터로 넘겨주는 endpoint는 `errors`로 정의해놨었다.
+    - request.url_for('errors', status_code=)를 활용해서, 상황에맞는 status_code로 htmx를 redirect시킨다.
+    - **errors -> error_infos로 변수명을 고쳐준다.**
+    ```python
+    @router.post("/calendar_sync")
+    async def hx_create_calendar_syncs(
+            request: Request,
+            is_htmx=Depends(is_htmx),
+            # body = Body(...),
+            # body =Depends(hx_vals_schema(CreateCalendarSyncsRequest))
+            data_and_error_infos=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+            session: AsyncSession = Depends(db.session),
+    ):
+        data, error_infos = data_and_error_infos
+        if len(error_infos) > 0:
+            # raise BadRequestException()
+            error_endpoint = request.url_for('errors', status_code=400)
+            error_endpoint = error_endpoint.include_query_params(message=error_infos)  
+            return redirect(error_endpoint, is_htmx=is_htmx)
+    
+    
+        new_sync = await CalendarSyncs.create(
+            session=session, auto_commit=True, refresh=True,
+            user_id=data.get('user_id'),
+            calendar_id=data.get('calendar_id'),
+        )
+    
+        new_synced_calendar = await UserCalendars.filter_by(session=session, id=new_sync.calendar_id).first()
+    
+        return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
+                      context={
+                          'new_synced_calendar': new_synced_calendar,
+                          'user_id': data.get('user_id'),
+                          'calendar_id': data.get('calendar_id'),
+                      })
+    ```
+   
+3. 다른 htmx depends로서, hx_vals_schema를 이용하는 곳도 동일하게 바꿔준다.
+
 
 ### 반복되는 User의 Active Synced Calnedar 조회를 classmethod로 만들어놓기
 

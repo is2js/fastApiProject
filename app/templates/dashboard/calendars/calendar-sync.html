@@ -19,24 +19,24 @@
                     <th>Action</th>
                 </tr>
                 {% for calendar in calendars %}
-                    <tr id="calendarRow_{{ loop.index }}">
+                    <tr id="calendarRow_{{ calendar.id }}">
                         <th>{{ calendar.name }}</th>
                         <th>{{ calendar.google_calendar_id }}</th>
                         <th>
                             {# 내 캘린더가 synced_calendars에 포함시, 연동중으로 표시 #}
                             {% if calendar in synced_calendars %}
                                 <button
-                                        id="syncBtn_{{ loop.index }}"
+                                        id="syncBtn_{{ calendar.id }}"
                                         class='btn btn-sm btn-success'
                                 >
                                     연동 중
                                 </button>
                             {% else %}
                                 {# 포함안되어있으면, 기존의 연동으로 표시 #}
-                                <button id="syncBtn_{{ loop.index }}"
+                                <button id="syncBtn_{{ calendar.id }}"
                                         class='btn btn-sm btn-auth'
                                         hx-post='{{ url_for("hx_create_calendar_syncs") }}'
-                                        hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ calendar.id }}", "loop_index": "{{ loop.index }}" }'
+                                        hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ calendar.id }}"}'
                                         hx-target="#syncedCalendarTable"
                                         hx-swap="beforeend swap:1s"
                                 >
@@ -64,10 +64,10 @@
                         <th>{{ synced_calendar.google_calendar_id }}</th>
                         <th>
                             <button
-                                    id="syncCancelBtn_{{ loop.index }}"
+                                    id="syncCancelBtn_{{ synced_calendar.id }}"
                                     class='btn btn-sm btn-danger'
                                     hx-post='{{ url_for("hx_delete_calendar_syncs") }}'
-                                    hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ synced_calendar.id }}", "loop_index": "0" }'
+                                    hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ synced_calendar.id }}"}'
                                     hx-target="#syncedCalendarTable"
                                     hx-swap="outerHTML"
                             >

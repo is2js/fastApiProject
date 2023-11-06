@@ -7,7 +7,6 @@ from app.models import Users, UserCalendars, CalendarType, CalendarSyncs
 from app.libs.auth.oauth_clients.google import CALENDAR_SCOPES, google_scopes_to_service_name
 from app.models import SnsType, RoleName
 from app.pages.decorators import oauth_login_required, role_required
-from app.pages.route import TemplateRoute
 from app.schemas.google import CreateCalendarSyncsRequest, DeleteCalendarSyncsRequest
 from app.utils.http_utils import render, hx_vals_schema, redirect, is_htmx
 
@@ -100,11 +99,15 @@ async def hx_create_calendar_syncs(
         is_htmx=Depends(is_htmx),
         # body = Body(...),
         # body =Depends(hx_vals_schema(CreateCalendarSyncsRequest))
-        data_and_errors=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+        data_and_error_infos=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
         session: AsyncSession = Depends(db.session),
 ):
-    data, errors = data_and_errors
-    # data, errors >> ({'user_id': 3, 'calendar_id': 19}, [])
+    data, error_infos = data_and_error_infos
+    if len(error_infos) > 0:
+        # raise BadRequestException()
+        error_endpoint = request.url_for('errors', status_code=400)
+        error_endpoint = error_endpoint.include_query_params(message=error_infos)
+        return redirect(error_endpoint, is_htmx=is_htmx)
 
     new_sync = await CalendarSyncs.create(
         session=session, auto_commit=True, refresh=True,
@@ -119,17 +122,21 @@ async def hx_create_calendar_syncs(
                       'new_synced_calendar': new_synced_calendar,
                       'user_id': data.get('user_id'),
                       'calendar_id': data.get('calendar_id'),
-                      'loop_index': data.get('loop_index'),
                   })
 
 
 @router.post("/calendar_sync_cancel")
 async def hx_delete_calendar_syncs(
         request: Request,
-        data_and_errors=Depends(hx_vals_schema(DeleteCalendarSyncsRequest)),
+        data_and_error_infos=Depends(hx_vals_schema(DeleteCalendarSyncsRequest)),
         session: AsyncSession = Depends(db.session),
 ):
-    data, errors = data_and_errors
+    data, error_infos = data_and_error_infos
+    if len(error_infos) > 0:
+
+        error_endpoint = request.url_for('errors', status_code=400)
+        error_endpoint = error_endpoint.include_query_params(message=error_infos)
+        return redirect(error_endpoint, is_htmx=is_htmx)
 
     # 1개 요소 delete
     target_sync = await CalendarSyncs.filter_by(
@@ -150,26 +157,9 @@ async def hx_delete_calendar_syncs(
     )
     synced_calendars = synced_calendars.all()
 
-    synced_btn_id = data.get('loop_index')
-    if not synced_btn_id:
-        # 직접, 나의 캘린더의 순서를 찾아서, 현재 연동취소되는 캘린더가 몇번쨰인지 확인하여 loop_index로 대체
-        user_active_google_calendars = await UserCalendars.filter_by(
-            session=session,
-            user_id=request.state.user.id,
-            type=CalendarType.GOOGLE,
-            is_deleted=False
-        ).all()
-
-        synced_btn_id = None
-        for position, calendar in enumerate(user_active_google_calendars, start=1):
-            if calendar.id == data.get('calendar_id'):
-                synced_btn_id = position
-                break
-
     return render(request, "dashboard/calendars/partials/synced-calendar-table.html",
                   context={
                       'synced_calendars': synced_calendars,
                       'user_id': data.get('user_id'),
                       'calendar_id': data.get('calendar_id'),
-                      'loop_index': synced_btn_id,
                   })
