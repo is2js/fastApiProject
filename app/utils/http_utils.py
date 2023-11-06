@@ -1,6 +1,8 @@
+import json
 import typing
 
 from fastapi import Body
+from pydantic import error_wrappers, BaseModel, ValidationError
 from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, HTMLResponse, Response
 
@@ -69,7 +71,26 @@ def render(request, template_name, context={}, status_code: int = 200, cookies: 
     return response
 
 
-def hx_vals_schema(schema):
+def hx_vals_schema(schema: BaseModel):
+    """
+    route의 의존성 주입 함수로 사용
+
+    view의 post with hx-vals를 -> Body(...)의 bytes문자열을 디코딩하여
+    -> dict로 변환 -> try: Schema(**dict)로 넣어 validation
+    -> except: 변환시 에러나면 errors = list 추가하여 반환
+    => 튜플 (data, errors)를 반환하는데, Depends()에서는 튜플 언패킹이 안되어
+       data_and_errors로 받아서, 함수내에서 data, errors = data_and_errors로 받아서 사용
+
+    @router.post("/calendar_sync")
+    async def hx_create_calendar_syncs(
+        request: Request,
+        is_htmx=Depends(is_htmx),
+        data_and_errors=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+    ):
+        data, errors = data_and_errors
+
+    """
+
     def bytes_body_to_schema(body: bytes = Body(...)):
         # print(f"body >> {body}")
         # body >> b'guild_id=1161106117141725284'
@@ -88,6 +109,26 @@ def hx_vals_schema(schema):
         # form_fields >> {'guild_id': '1161106117141725284', 'member_count': '3'}
         # return form_fields
 
-        return schema(**form_fields)
+        # return schema(**form_fields)
+
+        data = {}
+        errors = []
+        error_str = None
+
+        try:
+            data = schema(**form_fields).model_dump()
+        # except error_wrappers.ValidationError as e:
+        # `pydantic.error_wrappers:ValidationError` has been moved to `pydantic:ValidationError`.
+        #   warnings.warn(f'`{import_path}` has been moved to `{new_location}`.')
+        except ValidationError as e:
+            error_str = e.json()
+
+        if error_str is not None:
+            try:
+                errors = json.loads(error_str)
+            except Exception as e:
+                errors = [{"loc": "non_field_error", "msg": "Unknown error"}]
+
+        return data, errors
 
     return bytes_body_to_schema

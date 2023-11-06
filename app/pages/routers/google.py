@@ -8,7 +8,7 @@ from app.libs.auth.oauth_clients.google import CALENDAR_SCOPES, google_scopes_to
 from app.models import SnsType, RoleName
 from app.pages.decorators import oauth_login_required, role_required
 from app.pages.route import TemplateRoute
-from app.schemas.google import CreateCalendarSyncsRequest
+from app.schemas.google import CreateCalendarSyncsRequest, DeleteCalendarSyncsRequest
 from app.utils.http_utils import render, hx_vals_schema, redirect, is_htmx
 
 router = APIRouter()
@@ -70,6 +70,7 @@ async def sync_calendar(request: Request, session: AsyncSession = Depends(db.ses
     }
 
     # 6. synced calendars 조회하기
+    # TODO: load 구현 후, classmethod로 만들기
     synced_calendars = await session.scalars(
         select(UserCalendars)
         .filter_by(is_deleted=False)  # cls 테이블에 대한 조건. 삭제처리 안된 것만
@@ -90,7 +91,7 @@ async def sync_calendar(request: Request, session: AsyncSession = Depends(db.ses
         'synced_calendars': synced_calendars,
     })
 
-    return render(request, "dashboard/calendar-sync.html", context=context)
+    return render(request, "dashboard/calendars/calendar-sync.html", context=context)
 
 
 @router.post("/calendar_sync")
@@ -98,15 +99,77 @@ async def hx_create_calendar_syncs(
         request: Request,
         is_htmx=Depends(is_htmx),
         # body = Body(...),
-        body=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
-        session: AsyncSession = Depends(db.session)
+        # body =Depends(hx_vals_schema(CreateCalendarSyncsRequest))
+        data_and_errors=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+        session: AsyncSession = Depends(db.session),
 ):
+    data, errors = data_and_errors
+    # data, errors >> ({'user_id': 3, 'calendar_id': 19}, [])
 
-    await CalendarSyncs.create(
-        session=session,
-        auto_commit=True,
-        user_id=body.user_id,
-        calendar_id=body.calendar_id,
+    new_sync = await CalendarSyncs.create(
+        session=session, auto_commit=True, refresh=True,
+        user_id=data.get('user_id'),
+        calendar_id=data.get('calendar_id'),
     )
 
-    return redirect(request.url_for('sync_calendar'), is_htmx=is_htmx)
+    new_synced_calendar = await UserCalendars.filter_by(session=session, id=new_sync.calendar_id).first()
+
+    return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
+                  context={
+                      'new_synced_calendar': new_synced_calendar,
+                      'user_id': data.get('user_id'),
+                      'calendar_id': data.get('calendar_id'),
+                      'loop_index': data.get('loop_index'),
+                  })
+
+
+@router.post("/calendar_sync_cancel")
+async def hx_delete_calendar_syncs(
+        request: Request,
+        data_and_errors=Depends(hx_vals_schema(DeleteCalendarSyncsRequest)),
+        session: AsyncSession = Depends(db.session),
+):
+    data, errors = data_and_errors
+
+    # 1개 요소 delete
+    target_sync = await CalendarSyncs.filter_by(
+        session=session,
+        user_id=data.get('user_id'),
+        calendar_id=data.get('calendar_id'),
+    ).first()
+
+    await target_sync.delete(session=session, auto_commit=True)
+
+    # htmx 삭제 후, 전체 user calendar 요소 다시 조회후 redner
+    # TODO: load 구현 후, classmethod로 만들기
+    synced_calendars = await session.scalars(
+        select(UserCalendars)
+        .filter_by(is_deleted=False)  # cls 테이블에 대한 조건. 삭제처리 안된 것만
+        .join(UserCalendars.calendar_syncs) \
+        .filter(CalendarSyncs.user_id == data.get('user_id'))
+    )
+    synced_calendars = synced_calendars.all()
+
+    synced_btn_id = data.get('loop_index')
+    if not synced_btn_id:
+        # 직접, 나의 캘린더의 순서를 찾아서, 현재 연동취소되는 캘린더가 몇번쨰인지 확인하여 loop_index로 대체
+        user_active_google_calendars = await UserCalendars.filter_by(
+            session=session,
+            user_id=request.state.user.id,
+            type=CalendarType.GOOGLE,
+            is_deleted=False
+        ).all()
+
+        synced_btn_id = None
+        for position, calendar in enumerate(user_active_google_calendars, start=1):
+            if calendar.id == data.get('calendar_id'):
+                synced_btn_id = position
+                break
+
+    return render(request, "dashboard/calendars/partials/synced-calendar-table.html",
+                  context={
+                      'synced_calendars': synced_calendars,
+                      'user_id': data.get('user_id'),
+                      'calendar_id': data.get('calendar_id'),
+                      'loop_index': synced_btn_id,
+                  })

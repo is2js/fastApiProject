@@ -1,0 +1,82 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %} 캘린더 설정 | {{ super() }} {% endblock title %}
+
+{% block content %}
+    <div class="container mt-3">
+        <div class="row">
+            <div class="col">
+                <h3> 📆 구글 캘린더-> Application 연동</h3>
+            </div>
+        </div>
+
+        <div class="row mt-3 justify-content-center">
+            <h6> 나의 구글계정 캘린더 목록</h6>
+            <table style="border: 1px solid; width: 80%;">
+                <tr>
+                    <th>Calendar Name</th>
+                    <th>Calendar ID</th>
+                    <th>Action</th>
+                </tr>
+                {% for calendar in calendars %}
+                    <tr id="calendarRow_{{ loop.index }}">
+                        <th>{{ calendar.name }}</th>
+                        <th>{{ calendar.google_calendar_id }}</th>
+                        <th>
+                            {# 내 캘린더가 synced_calendars에 포함시, 연동중으로 표시 #}
+                            {% if calendar in synced_calendars %}
+                                <button
+                                        id="syncBtn_{{ loop.index }}"
+                                        class='btn btn-sm btn-success'
+                                >
+                                    연동 중
+                                </button>
+                            {% else %}
+                                {# 포함안되어있으면, 기존의 연동으로 표시 #}
+                                <button id="syncBtn_{{ loop.index }}"
+                                        class='btn btn-sm btn-auth'
+                                        hx-post='{{ url_for("hx_create_calendar_syncs") }}'
+                                        hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ calendar.id }}", "loop_index": "{{ loop.index }}" }'
+                                        hx-target="#syncedCalendarTable"
+                                        hx-swap="beforeend swap:1s"
+                                >
+                                    연동
+                                </button>
+                            {% endif %}
+                        </th>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+
+        <div class="row mt-3 justify-content-center">
+            <h6> Sync 캘린더 목록</h6>
+            {#            <table style="border: 1px solid; width: 80%;">#}
+            <table style="border: 1px solid; width: 80%;" id="syncedCalendarTable">
+                <tr>
+                    <th>Calendar Name</th>
+                    <th>Calendar ID</th>
+                    <th>Action</th>
+                </tr>
+                {% for synced_calendar in synced_calendars %}
+                    <tr>
+                        <th>{{ synced_calendar.name }}</th>
+                        <th>{{ synced_calendar.google_calendar_id }}</th>
+                        <th>
+                            <button
+                                    id="syncCancelBtn_{{ loop.index }}"
+                                    class='btn btn-sm btn-danger'
+                                    hx-post='{{ url_for("hx_delete_calendar_syncs") }}'
+                                    hx-vals='{"user_id": "{{ user.id }}", "calendar_id" : "{{ synced_calendar.id }}", "loop_index": "0" }'
+                                    hx-target="#syncedCalendarTable"
+                                    hx-swap="outerHTML"
+                            >
+                                연동 취소
+                            </button>
+                        </th>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+{% endblock content %}

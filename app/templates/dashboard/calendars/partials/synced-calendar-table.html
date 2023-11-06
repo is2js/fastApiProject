@@ -1,0 +1,28 @@
+<table style="border: 1px solid; width: 80%;" id="syncedCalendarTable">
+    <tr>
+        <th>Calendar Name</th>
+        <th>Calendar ID</th>
+        <th>Action</th>
+    </tr>
+    {% for synced_calendar in synced_calendars %}
+        <tr>
+            <th>{{ synced_calendar.name }}</th>
+            <th>{{ synced_calendar.google_calendar_id }}</th>
+            <th>
+                연동 취소
+            </th>
+        </tr>
+    {% endfor %}
+</table>
+
+{# 연동 취소후, 해당 id에 대응하는 연동버튼을 oob로서 대체시킨다. #}
+<button id="syncBtn_{{ loop_index }}"
+        class='btn btn-sm btn-auth'
+        hx-post='{{ url_for("hx_create_calendar_syncs") }}'
+        hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ calendar_id }}", "loop_index": "{{ loop_index }}" }'
+        hx-target="#syncedCalendarTable"
+        hx-swap="beforeend swap:1s"
+        hx-swap-oob="true"
+>
+    연동
+</button>

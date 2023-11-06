@@ -18,7 +18,7 @@ from app.libs.auth.transports import get_cookie_redirect_transport
 from app.libs.discord.bot.ipc_client import discord_ipc_client
 from app.pages.exceptions import DiscordBotNotConnectedException
 from app.pages.oauth_callback import get_discord_callback, DiscordAuthorizeCallback
-from app.models import SnsType, RoleName,  OAuthAccount
+from app.models import SnsType, RoleName, OAuthAccount
 from app.api.dependencies.auth import get_user_manager
 from app.errors.exceptions import TokenExpiredException, OAuthProfileUpdateFailException
 from app.pages.decorators import oauth_login_required, role_required
@@ -51,204 +51,197 @@ async def discord_home(request: Request):
     #     print(f"current_cals['items'] >> {current_cals['items']}")
     #
 
+    # skewed_expiry = self.expiry - _helpers.REFRESH_THRESHOLD
+    # TypeError: unsupported operand type(s) for -: 'str' and 'datetime.timedelta'
+    # current_cals['items'] >> [{'kind': 'calendar#calendarListEntry', 'etag': '"1657577269858000"', 'id': 'addressbook#contacts@group.v.calendar.google.com', 'summary': '�깮�씪', 'description': 'Google 二쇱냼濡앹뿉 �벑濡앸맂 �궗�엺�뱾�쓽 �깮�씪, 湲곕뀗�씪, 湲고� �씪�젙 �궇吏쒕�� �몴�떆�빀�땲�떎.', 'timeZone': 'Asia/Seoul', 'summaryOverride': 'Contacts', 'colorId': '17', 'backgroundColor': '#9a9cff', 'foregroundColor': '#000000', 'accessRole': 'reader', 'defaultReminders': [], 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}, {'kind': 'calendar#calendarListEntry', 'etag': '"1657580828523000"', 'id': 'ko.south_korea#holiday@group.v.calendar.google.com', 'summary': '���븳誘쇨뎅�쓽 �쑕�씪', 'description': '���븳誘쇨뎅�쓽 怨듯쑕�씪', 'timeZone': 'Asia/Seoul', 'summaryOverride': '���븳誘쇨뎅�쓽 �쑕�씪', 'colorId': '17', 'backgroundColor': '#9a9cff', 'foregroundColor': '#000000', 'accessRole': 'reader', 'defaultReminders': [], 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}, {'kind': 'calendar#calendarListEntry', 'etag': '"1657580830000000"', 'id': 'tingstyle1@gmail.com', 'summary': 'tingstyle1@gmail.com', 'timeZone': 'Asia/Seoul', 'colorId': '19', 'backgroundColor': '#c2c2c2', 'foregroundColor': '#000000', 'selected': True, 'accessRole': 'owner', 'defaultReminders': [{'method': 'popup', 'minutes': 30}], 'notificationSettings': {'notifications': [{'type': 'eventCreation', 'method': 'email'}, {'type': 'eventChange', 'method': 'email'}, {'type': 'eventCancellation', 'method': 'email'}, {'type': 'eventResponse', 'method': 'email'}]}, 'primary': True, 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}]
 
+    # google_account: OAuthAccount = user.get_oauth_account(SnsType.GOOGLE)
 
-        # skewed_expiry = self.expiry - _helpers.REFRESH_THRESHOLD
-        # TypeError: unsupported operand type(s) for -: 'str' and 'datetime.timedelta'
-        # current_cals['items'] >> [{'kind': 'calendar#calendarListEntry', 'etag': '"1657577269858000"', 'id': 'addressbook#contacts@group.v.calendar.google.com', 'summary': '�깮�씪', 'description': 'Google 二쇱냼濡앹뿉 �벑濡앸맂 �궗�엺�뱾�쓽 �깮�씪, 湲곕뀗�씪, 湲고� �씪�젙 �궇吏쒕�� �몴�떆�빀�땲�떎.', 'timeZone': 'Asia/Seoul', 'summaryOverride': 'Contacts', 'colorId': '17', 'backgroundColor': '#9a9cff', 'foregroundColor': '#000000', 'accessRole': 'reader', 'defaultReminders': [], 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}, {'kind': 'calendar#calendarListEntry', 'etag': '"1657580828523000"', 'id': 'ko.south_korea#holiday@group.v.calendar.google.com', 'summary': '���븳誘쇨뎅�쓽 �쑕�씪', 'description': '���븳誘쇨뎅�쓽 怨듯쑕�씪', 'timeZone': 'Asia/Seoul', 'summaryOverride': '���븳誘쇨뎅�쓽 �쑕�씪', 'colorId': '17', 'backgroundColor': '#9a9cff', 'foregroundColor': '#000000', 'accessRole': 'reader', 'defaultReminders': [], 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}, {'kind': 'calendar#calendarListEntry', 'etag': '"1657580830000000"', 'id': 'tingstyle1@gmail.com', 'summary': 'tingstyle1@gmail.com', 'timeZone': 'Asia/Seoul', 'colorId': '19', 'backgroundColor': '#c2c2c2', 'foregroundColor': '#000000', 'selected': True, 'accessRole': 'owner', 'defaultReminders': [{'method': 'popup', 'minutes': 30}], 'notificationSettings': {'notifications': [{'type': 'eventCreation', 'method': 'email'}, {'type': 'eventChange', 'method': 'email'}, {'type': 'eventCancellation', 'method': 'email'}, {'type': 'eventResponse', 'method': 'email'}]}, 'primary': True, 'conferenceProperties': {'allowedConferenceSolutionTypes': ['hangoutsMeet']}}]
+    # creds = Credentials.from_authorized_user_info(
+    #     info=dict(
+    #         token=google_account.access_token,
+    #         refresh_token=google_account.refresh_token,
+    #         client_id=GOOGLE_CLIENT_ID,
+    #         client_secret=GOOGLE_CLIENT_SECRET,
+    #         scopes=["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
+    #     )
+    # )
 
+    # request.session['scopes'] = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
 
-        # google_account: OAuthAccount = user.get_oauth_account(SnsType.GOOGLE)
+    # print(f"creds.to_json() >> {creds.to_json()}")
+    # {"token": "ya29.a0AfB_byByOvMA-SAPdTeGm5l0m-8KRz2VyKp2sfzywEVET7h_eyXhDeUgCc_biqM2lL7aYCofItTn_BvGE7who26vKCeDXygjM8NKs51HrfN6wtWH5wNy3yjXkLsO2I0-mBo_kBV3JJZqt5HN9Far0MM595sJGokgljKWaCgYKAdoSARMSFQGOcNnCidI5bFBF40m-_22UWGahkw0171",
+    # "refresh_token": "1//0exwiXWbWorZVCgYIARAAGA4SNwF-L9IrIUlrd3NEga5mc05ODo_CY1alWJjwp_HYsrqZzVCtZuh8JOX02q83LHsEHaH5UE3uWr0",
+    # "token_uri": "https://oauth2.googleapis.com/token",
+    # "client_id": "622493818735-g9gp89jisli2igf2qhkmanp4vgdtkbs4.apps.googleusercontent.com",
+    # "client_secret": "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",
+    # "scopes": ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
+    # "expiry": "2023-10-17T07:41:11.290729Z"}
+    # 2023-10-17T07:41:31.317022070Z
 
-        # creds = Credentials.from_authorized_user_info(
-        #     info=dict(
-        #         token=google_account.access_token,
-        #         refresh_token=google_account.refresh_token,
-        #         client_id=GOOGLE_CLIENT_ID,
-        #         client_secret=GOOGLE_CLIENT_SECRET,
-        #         scopes=["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
-        #     )
-        # )
+    # print(f"creds >> {creds}")
+    # creds >> <google.oauth2.credentials.Credentials object at 0x0000017E670BB0A0>
 
-        # request.session['scopes'] = ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
+    # google_client = get_oauth_client(SnsType.GOOGLE)
+    # refreshed_access_token = await google_client.refresh_token(google_account.refresh_token)
+    # print(f"token >> {refreshed_access_token}")
+    # token >> {'access_token': 'ya29.a0AfB_byBVs9aGnup0mC95okB0R-CMVKjIZhTzHqciJQWsjhvv44QHcnNUofyilz2eOFk1bYAKZ94B5c4A6f_FgzNhv0YXV11YAzaCPPlm26BfyTUJrT2A0hQz3fR5pa7hF17wFwmDA6IAu_sdfukIfD9I4Difpr9RdRJXaCgYKAZ0SARMSFQGOcNnClCFeAErrUax3U9DcG6lM_A0171', 'expires_in': 3599, 'scope': 'openid https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/user.phonenumbers.read https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/user.birthday.read https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/user.gender.read', 'token_type': 'Bearer', 'id_token': 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkMzM0NDk3NTA2YWNiNzRjZGVlZGFhNjYxODRkMTU1NDdmODM2OTMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI2MjI0OTM4MTg3MzUtZzlncDg5amlzbGkyaWdmMnFoa21hbnA0dmdkdGticzQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI2MjI0OTM4MTg3MzUtZzlncDg5amlzbGkyaWdmMnFoa21hbnA0dmdkdGticzQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMDg1MDk4NDM1Mzc2NTI4MDM5NDUiLCJlbWFpbCI6InRpbmdzdHlsZTFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImF0X2hhc2giOiJ5MzZEQjQxRWlsUVYxZm9QUXcyc2NRIiwiaWF0IjoxNjk3NDY2MTY2LCJleHAiOjE2OTc0Njk3NjZ9.eM3VThkyYrLNzX2sMmYARveSr4BChyHKBFWmvHdHtNdL-m75Qn0NHvX1CQF4Ep1mm9vjocVLVYb8PKUB4TiEwq56GOFnfITePwZkYV0DiGNp0GoSNDNCMUnQ672t_K68zZvWe9o0Aw5OeKAn58EH5BPjX3f90kamlLGYErcI-Ztyu3NzMuD9yYcVqY0wGIZ9O0UuZap5LsF1Fd6DX0BHombxVkqk0Gt-iJIGbLGhvOjTnIPwPExUduQzq-_x4Rg_Iv8Q-at1zNQ8njzwcLAouIsd2o2HZL9kc0y2Qqlw7QTngXw4c0uAnJ3PpmQ1QYQNoWCPRSKdykzinnnE-nOKyA', 'expires_at': 1697469766}
 
-        # print(f"creds.to_json() >> {creds.to_json()}")
-        # {"token": "ya29.a0AfB_byByOvMA-SAPdTeGm5l0m-8KRz2VyKp2sfzywEVET7h_eyXhDeUgCc_biqM2lL7aYCofItTn_BvGE7who26vKCeDXygjM8NKs51HrfN6wtWH5wNy3yjXkLsO2I0-mBo_kBV3JJZqt5HN9Far0MM595sJGokgljKWaCgYKAdoSARMSFQGOcNnCidI5bFBF40m-_22UWGahkw0171",
-        # "refresh_token": "1//0exwiXWbWorZVCgYIARAAGA4SNwF-L9IrIUlrd3NEga5mc05ODo_CY1alWJjwp_HYsrqZzVCtZuh8JOX02q83LHsEHaH5UE3uWr0",
-        # "token_uri": "https://oauth2.googleapis.com/token",
-        # "client_id": "622493818735-g9gp89jisli2igf2qhkmanp4vgdtkbs4.apps.googleusercontent.com",
-        # "client_secret": "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",
-        # "scopes": ["https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events"],
-        # "expiry": "2023-10-17T07:41:11.290729Z"}
-        # 2023-10-17T07:41:31.317022070Z
-        
+    # calendar_service = build('calendar', 'v3', credentials=creds)
 
-        # print(f"creds >> {creds}")
-        # creds >> <google.oauth2.credentials.Credentials object at 0x0000017E670BB0A0>
+    # Call the Calendar API
+    #### events ####
+    # now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
 
-        # google_client = get_oauth_client(SnsType.GOOGLE)
-        # refreshed_access_token = await google_client.refresh_token(google_account.refresh_token)
-        # print(f"token >> {refreshed_access_token}")
-        # token >> {'access_token': 'ya29.a0AfB_byBVs9aGnup0mC95okB0R-CMVKjIZhTzHqciJQWsjhvv44QHcnNUofyilz2eOFk1bYAKZ94B5c4A6f_FgzNhv0YXV11YAzaCPPlm26BfyTUJrT2A0hQz3fR5pa7hF17wFwmDA6IAu_sdfukIfD9I4Difpr9RdRJXaCgYKAZ0SARMSFQGOcNnClCFeAErrUax3U9DcG6lM_A0171', 'expires_in': 3599, 'scope': 'openid https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/user.phonenumbers.read https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/user.birthday.read https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/user.gender.read', 'token_type': 'Bearer', 'id_token': 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkMzM0NDk3NTA2YWNiNzRjZGVlZGFhNjYxODRkMTU1NDdmODM2OTMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiI2MjI0OTM4MTg3MzUtZzlncDg5amlzbGkyaWdmMnFoa21hbnA0dmdkdGticzQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJhdWQiOiI2MjI0OTM4MTg3MzUtZzlncDg5amlzbGkyaWdmMnFoa21hbnA0dmdkdGticzQuYXBwcy5nb29nbGV1c2VyY29udGVudC5jb20iLCJzdWIiOiIxMDg1MDk4NDM1Mzc2NTI4MDM5NDUiLCJlbWFpbCI6InRpbmdzdHlsZTFAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImF0X2hhc2giOiJ5MzZEQjQxRWlsUVYxZm9QUXcyc2NRIiwiaWF0IjoxNjk3NDY2MTY2LCJleHAiOjE2OTc0Njk3NjZ9.eM3VThkyYrLNzX2sMmYARveSr4BChyHKBFWmvHdHtNdL-m75Qn0NHvX1CQF4Ep1mm9vjocVLVYb8PKUB4TiEwq56GOFnfITePwZkYV0DiGNp0GoSNDNCMUnQ672t_K68zZvWe9o0Aw5OeKAn58EH5BPjX3f90kamlLGYErcI-Ztyu3NzMuD9yYcVqY0wGIZ9O0UuZap5LsF1Fd6DX0BHombxVkqk0Gt-iJIGbLGhvOjTnIPwPExUduQzq-_x4Rg_Iv8Q-at1zNQ8njzwcLAouIsd2o2HZL9kc0y2Qqlw7QTngXw4c0uAnJ3PpmQ1QYQNoWCPRSKdykzinnnE-nOKyA', 'expires_at': 1697469766}
+    # print('Getting the upcoming 10 events')
 
-        # calendar_service = build('calendar', 'v3', credentials=creds)
+    # events_result = calendar_service.events().list(
+    #     calendarId='primary',
+    #     timeMin=now,
+    #     maxResults=10, singleEvents=True,
+    #     orderBy='startTime') \
+    #     .execute()
+    #
+    # events = events_result.get('items', [])
 
+    # print(f"events >> {events}")
+    # events >> [
+    # {
+    #     "kind":"calendar#event",
+    #     "etag":"\"3222264627100000\"",
+    #     "id":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60_20231020T043000Z",
+    #     "status":"confirmed",
+    #     "htmlLink":"https://www.google.com/calendar/event?eid=Y2hoNjhvajE2c29tOGI5ZzY5aWpjYjlrYzVqNmFiOW82MHI2Y2I5ZzYxaWo4b2oyNzVpbThlMWw2MF8yMDIzMTAyMFQwNDMwMDBaIHRpbmdzdHlsZTFAbQ",
+    #     "created":"2020-03-02T23:26:11.000Z",
+    #     "updated":"2021-01-20T08:45:13.550Z",
+    #     "summary":"마통상품20만원 출금",
+    #     "colorId":"5",
+    #     "creator":{
+    #         "email":"tingstyle1@gmail.com",
+    #         "self":true
+    #     },
+    #     "organizer":{
+    #         "email":"tingstyle1@gmail.com",
+    #         "self":true
+    #     },
+    #     "start":{
+    #         "dateTime":"2023-10-20T13:30:00+09:00",
+    #         "timeZone":"Asia/Seoul"
+    #     },
+    #     "end":{
+    #         "dateTime":"2023-10-20T14:30:00+09:00",
+    #         "timeZone":"Asia/Seoul"
+    #     },
+    #     "recurringEventId":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60",
+    #     "originalStartTime":{
+    #         "dateTime":"2023-10-20T13:30:00+09:00",
+    #         "timeZone":"Asia/Seoul"
+    #     },
+    #     "iCalUID":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60@google.com",
+    #     "sequence":0,
+    #     "reminders":{
+    #         "useDefault":true
+    #     },
+    #     "eventType":"default"
+    # },
+    # ]
 
-        # Call the Calendar API
-        #### events ####
-        # now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-
-        # print('Getting the upcoming 10 events')
-
-        # events_result = calendar_service.events().list(
-        #     calendarId='primary',
-        #     timeMin=now,
-        #     maxResults=10, singleEvents=True,
-        #     orderBy='startTime') \
-        #     .execute()
-        #
-        # events = events_result.get('items', [])
-
-        # print(f"events >> {events}")
-        # events >> [
-        # {
-        #     "kind":"calendar#event",
-        #     "etag":"\"3222264627100000\"",
-        #     "id":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60_20231020T043000Z",
-        #     "status":"confirmed",
-        #     "htmlLink":"https://www.google.com/calendar/event?eid=Y2hoNjhvajE2c29tOGI5ZzY5aWpjYjlrYzVqNmFiOW82MHI2Y2I5ZzYxaWo4b2oyNzVpbThlMWw2MF8yMDIzMTAyMFQwNDMwMDBaIHRpbmdzdHlsZTFAbQ",
-        #     "created":"2020-03-02T23:26:11.000Z",
-        #     "updated":"2021-01-20T08:45:13.550Z",
-        #     "summary":"마통상품20만원 출금",
-        #     "colorId":"5",
-        #     "creator":{
-        #         "email":"tingstyle1@gmail.com",
-        #         "self":true
-        #     },
-        #     "organizer":{
-        #         "email":"tingstyle1@gmail.com",
-        #         "self":true
-        #     },
-        #     "start":{
-        #         "dateTime":"2023-10-20T13:30:00+09:00",
-        #         "timeZone":"Asia/Seoul"
-        #     },
-        #     "end":{
-        #         "dateTime":"2023-10-20T14:30:00+09:00",
-        #         "timeZone":"Asia/Seoul"
-        #     },
-        #     "recurringEventId":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60",
-        #     "originalStartTime":{
-        #         "dateTime":"2023-10-20T13:30:00+09:00",
-        #         "timeZone":"Asia/Seoul"
-        #     },
-        #     "iCalUID":"chh68oj16som8b9g69ijcb9kc5j6ab9o60r6cb9g61ij8oj275im8e1l60@google.com",
-        #     "sequence":0,
-        #     "reminders":{
-        #         "useDefault":true
-        #     },
-        #     "eventType":"default"
-        # },
-        # ]
-
-        #### calendar list ####
-        # current_cals = calendar_service.calendarList().list().execute()
-        # print(f"current_cals >> {current_cals}")
-        # {
-        #     "kind":"calendar#calendarList",
-        #     "etag":"\"p328bp1t5gro820o\"",
-        #     "nextSyncToken":"CJC8h6WG8IEDEhR0aW5nc3R5bGUxQGdtYWlsLmNvbQ==",
-        #     "items":[
-        #         {
-        #             "kind":"calendar#calendarListEntry",
-        #             "etag":"\"1657577269858000\"",
-        #             "id":"addressbook#contacts@group.v.calendar.google.com",
-        #             "summary":"생일",
-        #             "description":"Google 주소록에 등록된 사람들의 생일, 기념일, 기타 일정 날짜를 표시합니다.",
-        #             "timeZone":"Asia/Seoul",
-        #             "summaryOverride":"Contacts",
-        #             "colorId":"17",
-        #             "backgroundColor":"#9a9cff",
-        #             "foregroundColor":"#000000",
-        #             "accessRole":"reader",
-        #             "defaultReminders":[
-        #
-        #             ],
-        #             "conferenceProperties":{
-        #                 "allowedConferenceSolutionTypes":[
-        #                     "hangoutsMeet"
-        #                 ]
-        #             }
-        #         },
-        #         {
-        #             "kind":"calendar#calendarListEntry",
-        #             "etag":"\"1657580828523000\"",
-        #             "id":"ko.south_korea#holiday@group.v.calendar.google.com",
-        #             "summary":"대한민국의 휴일",
-        #             "description":"대한민국의 공휴일",
-        #             "timeZone":"Asia/Seoul",
-        #             "summaryOverride":"대한민국의 휴일",
-        #             "colorId":"17",
-        #             "backgroundColor":"#9a9cff",
-        #             "foregroundColor":"#000000",
-        #             "accessRole":"reader",
-        #             "defaultReminders":[
-        #
-        #             ],
-        #             "conferenceProperties":{
-        #                 "allowedConferenceSolutionTypes":[
-        #                     "hangoutsMeet"
-        #                 ]
-        #             }
-        #         },
-        #         {
-        #             "kind":"calendar#calendarListEntry",
-        #             "etag":"\"1657580830000000\"",
-        #             "id":"tingstyle1@gmail.com",
-        #             "summary":"tingstyle1@gmail.com",
-        #             "timeZone":"Asia/Seoul",
-        #             "colorId":"19",
-        #             "backgroundColor":"#c2c2c2",
-        #             "foregroundColor":"#000000",
-        #             "selected":true,
-        #             "accessRole":"owner",
-        #             "defaultReminders":[
-        #                 {
-        #                     "method":"popup",
-        #                     "minutes":30
-        #                 }
-        #             ],
-        #             "notificationSettings":{
-        #                 "notifications":[
-        #                     {
-        #                         "type":"eventCreation",
-        #                         "method":"email"
-        #                     },
-        #                     {
-        #                         "type":"eventChange",
-        #                         "method":"email"
-        #                     },
-        #                     {
-        #                         "type":"eventCancellation",
-        #                         "method":"email"
-        #                     },
-        #                     {
-        #                         "type":"eventResponse",
-        #                         "method":"email"
-        #                     }
-        #                 ]
-        #             },
-        #             "primary":true,
-        #             "conferenceProperties":{
-        #                 "allowedConferenceSolutionTypes":[
-        #                     "hangoutsMeet"
-        #                 ]
-        #             }
-        #         }
-        #     ]
-        # }
-
-
+    #### calendar list ####
+    # current_cals = calendar_service.calendarList().list().execute()
+    # print(f"current_cals >> {current_cals}")
+    # {
+    #     "kind":"calendar#calendarList",
+    #     "etag":"\"p328bp1t5gro820o\"",
+    #     "nextSyncToken":"CJC8h6WG8IEDEhR0aW5nc3R5bGUxQGdtYWlsLmNvbQ==",
+    #     "items":[
+    #         {
+    #             "kind":"calendar#calendarListEntry",
+    #             "etag":"\"1657577269858000\"",
+    #             "id":"addressbook#contacts@group.v.calendar.google.com",
+    #             "summary":"생일",
+    #             "description":"Google 주소록에 등록된 사람들의 생일, 기념일, 기타 일정 날짜를 표시합니다.",
+    #             "timeZone":"Asia/Seoul",
+    #             "summaryOverride":"Contacts",
+    #             "colorId":"17",
+    #             "backgroundColor":"#9a9cff",
+    #             "foregroundColor":"#000000",
+    #             "accessRole":"reader",
+    #             "defaultReminders":[
+    #
+    #             ],
+    #             "conferenceProperties":{
+    #                 "allowedConferenceSolutionTypes":[
+    #                     "hangoutsMeet"
+    #                 ]
+    #             }
+    #         },
+    #         {
+    #             "kind":"calendar#calendarListEntry",
+    #             "etag":"\"1657580828523000\"",
+    #             "id":"ko.south_korea#holiday@group.v.calendar.google.com",
+    #             "summary":"대한민국의 휴일",
+    #             "description":"대한민국의 공휴일",
+    #             "timeZone":"Asia/Seoul",
+    #             "summaryOverride":"대한민국의 휴일",
+    #             "colorId":"17",
+    #             "backgroundColor":"#9a9cff",
+    #             "foregroundColor":"#000000",
+    #             "accessRole":"reader",
+    #             "defaultReminders":[
+    #
+    #             ],
+    #             "conferenceProperties":{
+    #                 "allowedConferenceSolutionTypes":[
+    #                     "hangoutsMeet"
+    #                 ]
+    #             }
+    #         },
+    #         {
+    #             "kind":"calendar#calendarListEntry",
+    #             "etag":"\"1657580830000000\"",
+    #             "id":"tingstyle1@gmail.com",
+    #             "summary":"tingstyle1@gmail.com",
+    #             "timeZone":"Asia/Seoul",
+    #             "colorId":"19",
+    #             "backgroundColor":"#c2c2c2",
+    #             "foregroundColor":"#000000",
+    #             "selected":true,
+    #             "accessRole":"owner",
+    #             "defaultReminders":[
+    #                 {
+    #                     "method":"popup",
+    #                     "minutes":30
+    #                 }
+    #             ],
+    #             "notificationSettings":{
+    #                 "notifications":[
+    #                     {
+    #                         "type":"eventCreation",
+    #                         "method":"email"
+    #                     },
+    #                     {
+    #                         "type":"eventChange",
+    #                         "method":"email"
+    #                     },
+    #                     {
+    #                         "type":"eventCancellation",
+    #                         "method":"email"
+    #                     },
+    #                     {
+    #                         "type":"eventResponse",
+    #                         "method":"email"
+    #                     }
+    #                 ]
+    #             },
+    #             "primary":true,
+    #             "conferenceProperties":{
+    #                 "allowedConferenceSolutionTypes":[
+    #                     "hangoutsMeet"
+    #                 ]
+    #             }
+    #         }
+    #     ]
+    # }
 
     return render(request, "dashboard/home.html")
 
@@ -345,15 +338,18 @@ async def hx_delete_guild(
         # body: GuildLeaveRequest, # 422 Entity error <- hx_vals를 pydantic이 route에서 바로 못받는다.
         # body = Body(...),
         # body >> b'guild_id=1161106117141725284&member_count=3'
-        body=Depends(hx_vals_schema(GuildLeaveRequest)),
+        # body=Depends(hx_vals_schema(GuildLeaveRequest)),
+        data_and_errors=Depends(hx_vals_schema(GuildLeaveRequest)),
         is_htmx=Depends(is_htmx),
 ):
     # print(f"body >> {body}")
     # body >> guild_id=1161106117141725284
     # body >> guild_id=1161106117141725284 member_count=3
 
+    data, errors = data_and_errors
+
     # leave_guild = await discord_ipc_client.request('leave_guild', guild_id=guild_id)
-    leave_guild = await discord_ipc_client.request('leave_guild', guild_id=body.guild_id)
+    leave_guild = await discord_ipc_client.request('leave_guild', guild_id=data.get('guild_id'))
     leave_guild = leave_guild.response
 
     # user 관리 서버 중, bot에 없는 guild -> [bot 추가 url]을 만들어준다.
