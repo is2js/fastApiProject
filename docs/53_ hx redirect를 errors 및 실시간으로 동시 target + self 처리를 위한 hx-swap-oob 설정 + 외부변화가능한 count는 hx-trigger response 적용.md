@@ -311,6 +311,7 @@ async def hx_create_calendar_syncs(
     @router.post("/calendar_sync_cancel")
     async def hx_delete_calendar_syncs(
             request: Request,
+            is_htmx=Depends(is_htmx),
             data_and_errors=Depends(hx_vals_schema(DeleteCalendarSyncsRequest)),
             session: AsyncSession = Depends(db.session),
     ):
@@ -798,7 +799,7 @@ async def hx_create_calendar_syncs(
     
         return bytes_body_to_schema
     ```
-   
+
 
 2. route의 depends로 반환받은 errors의 길이를 확인하는 것은 list(errors)나 string(error_infos)나 동일하다
     - **이 때, `redriect(, is_htmx=)`를 줘서, 결과물에 갖다 꼽는게 아니라, redirect되게 만든다.**
@@ -838,13 +839,300 @@ async def hx_create_calendar_syncs(
                           'calendar_id': data.get('calendar_id'),
                       })
     ```
-   
+
 3. 다른 htmx depends로서, hx_vals_schema를 이용하는 곳도 동일하게 바꿔준다.
 
+4. 단일 삭제 후 재렌더링 되는 table의 연동취소 텍스트를 버튼으로 변경
+    - synced-calendar-table.html
+    ```html
+    <table style="border: 1px solid; width: 80%;" id="syncedCalendarTable">
+        <tr>
+            <th>Calendar Name</th>
+            <th>Calendar ID</th>
+            <th>Action</th>
+        </tr>
+        {% for synced_calendar in synced_calendars %}
+            <tr>
+                <th>{{ synced_calendar.name }}</th>
+                <th>{{ synced_calendar.google_calendar_id }}</th>
+                <th>
+    
+                    <button
+                            id="syncCancelBtn_{{ synced_calendar.id }}"
+                            class='btn btn-sm btn-danger'
+                            hx-post='{{ url_for("hx_delete_calendar_syncs") }}'
+                            hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ synced_calendar.id }}"}'
+                            hx-target="#syncedCalendarTable"
+                            hx-swap="outerHTML"
+                    >
+                        연동 취소
+                    </button>
+                </th>
+            </tr>
+        {% endfor %}
+    </table>
+    
+    {# 연동 취소후, 해당 id에 대응하는 연동버튼을 oob로서 대체시킨다. #}
+    <button id="syncBtn_{{ calendar_id }}"
+            class='btn btn-sm btn-auth'
+            hx-post='{{ url_for("hx_create_calendar_syncs") }}'
+            hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ calendar_id }}"}'
+            hx-target="#syncedCalendarTable"
+            hx-swap="beforeend swap:1s"
+            hx-swap-oob="true"
+    >
+        연동
+    </button>
+    ```
+
+#### 연동시, 싱크 캘린더 갯수 변화시키기
+
+##### 연동 추가시, 기존)추가된 싱크캘린더에 추가) 전체 싱크 캘린더 count도 같이 내려줘서 oob span#id에 변화시키기
+
+1. jinja로 `| length ` 필터를 이용해서 일단 찍어준다.
+    ```html
+    <h6> 나의 구글계정 캘린더 목록 ({{ calendars | length }})</h6>
+   
+    <h6> Sync 캘린더 목록 ({{ synced_calendars | length }})</h6>
+    ```
+   ![img.png](../images/132.png)
+
+2. htmx의 oob를 적용시키기 위해, 카운터가 변하는 싱크캘린더에만 `span + id=`를 부여해준다
+    - 내 구글캘린더는 갯수가 변하지 않는다(내 구글 캘린더 정보는 연동 추가시 데이터도 내리지 않음.)
+    ```html
+    <h6> Sync 캘린더 목록 (<span id="synced-calendars-count">{{ synced_calendars | length }}</span>)</h6>
+    ```
+
+
+3. **이제 연동create에 대한 htmx 템플릿인, `synced-calendar-tr.html`에 `싱크 캘린더 count oob`를 추가한다.**
+    ```html
+    {# 내 구글 캘린더 - [count] 업데이트 #}
+    <span id="synced-calendars-count" hx-swap-oob="true">{{ synced_calendars_count }}</span>
+    ```
+
+4. 현재 hx-싱크캘린더 추가시, 추가된 싱크캘린더 정보만 내려오는데, **해당 유저의 싱크캘린더 갯수를 조회해서 내려준다.**
+    ```python
+    @router.post("/calendar_sync")
+    async def hx_create_calendar_syncs(
+            request: Request,
+            is_htmx=Depends(is_htmx),
+            data_and_error_infos=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+            session: AsyncSession = Depends(db.session),
+    ):
+        # ...
+        new_sync = await CalendarSyncs.create(
+            session=session, auto_commit=True, refresh=True,
+            user_id=data.get('user_id'),
+            calendar_id=data.get('calendar_id'),
+        )
+        new_synced_calendar = await UserCalendars.filter_by(session=session, id=new_sync.calendar_id).first()
+    
+        # 현재 user의 모든 synced calendars 조회하기 for count
+        synced_calendars_count = await CalendarSyncs.filter_by(session=session, user_id=data.get('user_id')).count()
+    
+    
+        return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
+                      context={
+                          'new_synced_calendar': new_synced_calendar,
+                          'user_id': data.get('user_id'),
+                          'calendar_id': data.get('calendar_id'),
+                          'synced_calendars_count': synced_calendars_count,
+                      })
+    ```
+
+##### 연동 삭제시, 기존) 전체 싱크 캘린더 렌더링하고 있으니, oob span#id + length필터로 바꿔주기
+
+1. 연동 삭제시에는 전체 데이터를 내려보내 table을 생성하므로, `synced-calendar-table.html`에 전체 싱크 데이터의 length만 oob로 바꿔서 걸어주면 된다.
+    ```html
+    {# 연동 취소후, 싱크 캘린더 - [count] 업데이트 #}
+    <span id="synced-calendars-count" hx-swap-oob="true">{{ synced_calendars | length }}</span>
+    ```
+
+### 중요) 다른 유저가 변경할 할 수 있는 [전체 데이터 count oob]를 hx-trigger response -> hx-trigger hx-get으로 받아오기
+
+#### render메서드에 response.headers에 HX-Trigger 추가
+
+1. 백엔드 render 메서드에서 `hx_trigger`인자를 추가하여, 존재시 `response.headers`에 HX-Trigger로 추가하기
+    - response에 추가되면, 해당 trigger를 받는 view에서 custom event로서 작동하게 되어 -> 해당 htmx가 호출된다.
+    ```python
+    def render(request, template_name, context={}, status_code: int = 200, cookies: dict = {},
+               hx_trigger: str = None,
+               ):
+        # ...
+        t = templates.get_template(template_name)
+        html_str = t.render(ctx)
+        response = HTMLResponse(html_str, status_code=status_code)
+        
+        # htmx 관련 response headers에 HX-trigger 추가
+        if hx_trigger:
+            response.headers["HX-Trigger"] = hx_trigger
+        # ...
+        return response
+    ```
+   ![img.png](../images/135.png)
+
+#### htmx 유발 버튼(최초 render시에는 적용안됌.)에 hx-trigger 적용
+
+1. 처음에는 render시부터 HX-Trigger를 추가하여 순차적으로 처리되도록 하고 싶었으나, 작동안함.
+    - [HX-Trigger Response Headers not triggering on initial page load](https://github.com/bigskysoftware/htmx/issues/922)
+    - 초기 로드는 htmx가 아닌 일반 브라우저 요청 메커니즘을 통해 이루어지므로 안타깝게도 헤더를 처리할 기회가 없습니다.
+    - **hx-trigger를 만들어놔도 초기에 HX-Trigger response를 넘겨줘도 첨엔 작동안한다.**
+        - hx호출 응답에 포함될때 비로소 작동함.
+
+2. 초기 페이지가 아닌, `연동`버튼을 누를 때 작동하는 route의 response에 `HX-Trigger`를 response.headers에 추가한다.
+
+    ```python
+    
+    @router.post("/calendar_sync")
+    async def hx_create_calendar_syncs(
+            request: Request,
+            is_htmx=Depends(is_htmx),
+            data_and_error_infos=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+            session: AsyncSession = Depends(db.session),
+    ):
+        # ...
+        return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
+                      context={
+                          'new_synced_calendar': new_synced_calendar,
+                          'user_id': data.get('user_id'),
+                          'calendar_id': data.get('calendar_id'),
+                          'synced_calendars_count': synced_calendars_count,
+                      },
+                      # 연동되서 호출될 hx custom event를 위한, HX-Trigger headers를 response 추가하는 옵션
+                      hx_trigger='synced-calendars-count'
+                      )
+    
+    ```
+
+3. 초기화면 `calendar-sync.html`의 count span태그는 그대로 될 것이나, `연동`시 partials로서 새롭게 render해야하므로
+    - paritals/synced-calendars-count-span.html을 새로 만들어서 붙혀놓고
+    - oob가 아닌 원본으로서 `hx-swap-oob="true"`를 제거한다.
+    - **추후, 렌더링된 paritals도 hx-trigger가 계속 발생하려면, partials도 원본처럼 hx-trigger, hx-get, hx-swap을 가져야함.**
+    ```html
+    <span id="synced-calendars-count">{{ synced_calendars | length }}</span>
+    ```
+
+4. **초기화면에서 작동은 안하지만, 추후 htmx호출시에 작동하도록 hx-trigger + hx-get으로 count데이터를 얻도록 작성한다.**
+    - `partials의 span`은 htmx호출시 응답할 `custom event 자체로서, 딱히 hx옵션을 안건다`.
+
+    1. **`hx-trigger`는 htmx 호출 response의 headers에 들어있는 `HX-Trigger`를 custom event로서 걸어, eventListener를 body에 걸어주는 역할을 한다.
+       . js로 body에 걸어주는 addEventListener와 동급이다.**
+        - 이 떄, response.headers['HX-Trigger'] = "synced-calendars-count"의 `custom event`외 **`from:body`를 hx-trigger에
+          적어주는데**
+            - `다른 element의 결과`로 내려오는 response.headers의 `Trigger이벤트를 인지`할 수 있게 `body에 js로 event Listener를 add해주는 것`과 동일한
+              원리이다.
+            ```js
+            document.body.addEventListener("myEvent", function(evt){
+                alert("myEvent was triggered!");
+            })
+            ```
+            ```html
+            <!-- Since it bubbles up to the <body>, we must use the `from:body` modifier below -->
+            <div hx-trigger="myEvent from:body" hx-get="/example"></div>
+            ```
+   2. hx-get으로 작동시 count데이터를 얻어오는 url을 걸어준다.
+        - 특정 유저에대한 정보인데, user_id는 굳이 안보내도, reqeuest.state.user에 포함되어있다.
+         - **만약, hx-get을 hx-vals와 함께 보낸다면, Schema를 만들고 받아도 되지만, `?query=param`으로 결국엔 전송된다.get-form도 마찬가지다**
+   3. htmx호출이후에는 span태그 자체가 바껴야하므로, hx-swap="outerHTML"로 작성해준다.
+   ```html
+   <span id="synced-calendars-count"
+          hx-trigger="synced-calendars-count from:body"
+          hx-get="{{ url_for('hx_get_synced_calendars_count') }}"
+          hx-swap="outerHTML"
+    >
+        {{ synced_calendars | length }}
+    </span>
+   ```
+
+5. 이제 `hx_get_synced_calendars_count 라우터`를 만들어서, partials를 응답해준다.
+    - **이 때, join mixin이 없으므로, stmt -> count_stmt by select(func.count()).select_from(stmt) -> await session.execute -> .scalar() 까지 직접 해줘야한다.**
+    - **혹은 stmt -> count_stmt by select(func.count()).select_from(stmt) -> await session.scalar 까지 직접 해줘야한다.**
+    ```python
+    @router.get("/synced_calendars_count")
+    async def hx_get_synced_calendars_count(
+            request: Request,
+            session: AsyncSession = Depends(db.session),
+    ):
+        user = request.state.user
+    
+        # TODO: load 구현 후, count() 메서드로 처리되게 하기
+        # scalars 객체 조회 : await session.scalars(stmt) + .all() =>
+        # scalar count 조회 :
+        # 1) stmt -> select( func.count() ).select_from( stmt )  + 2) await session.execute(count_stmt) + 3) .scalar()
+        subquery_stmt = (
+            select(UserCalendars)
+            .filter_by(is_deleted=False)  # cls 테이블에 대한 조건. 삭제처리 안된 것만
+            .join(UserCalendars.calendar_syncs)
+            .filter(CalendarSyncs.user_id == user.id)
+        )
+        from sqlalchemy import func
+        count_stmt = select(*[func.count()]) \
+            .select_from(subquery_stmt)
+    
+        # synced_calendars_count_result = await session.scalar(count_stmt)
+        # synced_calendars_count = synced_calendars_count_result.scalar()
+    
+        # 2) stmt -> select( func.count() ).select_from( stmt )  + 2) await session.scalar(count_stmt)
+        synced_calendars_count = await session.scalar(count_stmt)
+        
+        return render(request, "dashboard/calendars/partials/synced-calendars-count-span.html",
+                      context={
+                          'synced_calendars_count': synced_calendars_count,
+                      })
+    
+    ```
+6. 여기까지 수행하고 htmx 호출(연동)을 하면, **`hx-trigger가 먼저 작동`되어 hx-swap하지만, `이후, 기존에 만들어둔 **
+   - 연동으로 인해 추가되는 `synced-calendar-tr.html` 속 `hx-swap-oob="true"`로 인해 다시 바뀐다.
+   - network > response에서 응답되는 html을 미리 파악해볼 수 있다.
+    ![img.png](../images/136.png)
+
+7. 이제 연동/연동취소시 oob로 곁들여서 업데이트했던 count를, hx-trigger만으로 자동으로 업뎃되게 해야한다.
+
+#### custom event로 만든 업데이트는, hx-trigger response만 내려주면, htmx어떤 연동이든 oob없이 업데이트 가능
+1. 연동 추가 htmx호출인 `synced-calendar-tr.html` view에서 count 업데이트 oob를 삭제 + `route에서는 response에 HX-Trigger 추가`
+    - **기존에 count하던 코드 삭제 추가**
+```python
+@router.post("/calendar_sync")
+async def hx_create_calendar_syncs(
+        request: Request,
+        is_htmx=Depends(is_htmx),
+        data_and_error_infos=Depends(hx_vals_schema(CreateCalendarSyncsRequest)),
+        session: AsyncSession = Depends(db.session),
+):
+    #...
+    
+    # 현재 user의 모든 synced calendars 조회하기 for count
+    # synced_calendars_count = await CalendarSyncs.filter_by(session=session, user_id=data.get('user_id')).count()
+    # => custom event hx-trigger로 자동 처리
+
+    return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
+                  context={
+                      'new_synced_calendar': new_synced_calendar,
+                      'user_id': data.get('user_id'),
+                      'calendar_id': data.get('calendar_id'),
+                      # 'synced_calendars_count': synced_calendars_count,
+                      # => custom event hx-trigger로 자동 처리
+                  },
+                  # 연동되서 호출될 hx custom event를 위한, HX-Trigger headers를 response 추가하는 옵션
+                  hx_trigger='synced-calendars-count'
+                  )
+```
+2. 연동 취소 htmx호출인 `synced-calendar-table.html` view에서 count 업데이트 oob를 삭제 + `route에서는 response에 HX-Trigger 추가`
+3. **연동시에만 작동하는게 아니라 custom event 자체도, hx-trigger를 가지도록, 최소 렌더링과 동일하게 hx-trigger 및 속성들 적용**
+    - synced-calendars-count-span.html
+    ```html
+    <span id="synced-calendars-count"
+          hx-trigger="synced-calendars-count from:body"
+          hx-get="{{ url_for('hx_get_synced_calendars_count') }}"
+          hx-swap="outerHTML"
+        >
+        {{ synced_calendars_count }}
+    </span>
+    ```
 
 ### 반복되는 User의 Active Synced Calnedar 조회를 classmethod로 만들어놓기
 
-## DOCEKR, 설정 관련
+## DOCKER, 설정 관련
 
 ### 터미널에서 main.py가 아닌 os로 DOCKER_MODE아니라고 신호주고 사용
 

@@ -9,7 +9,17 @@
             <th>{{ synced_calendar.name }}</th>
             <th>{{ synced_calendar.google_calendar_id }}</th>
             <th>
-                연동 취소
+
+                <button
+                        id="syncCancelBtn_{{ synced_calendar.id }}"
+                        class='btn btn-sm btn-danger'
+                        hx-post='{{ url_for("hx_delete_calendar_syncs") }}'
+                        hx-vals='{"user_id": "{{ user_id }}", "calendar_id" : "{{ synced_calendar.id }}"}'
+                        hx-target="#syncedCalendarTable"
+                        hx-swap="outerHTML"
+                >
+                    연동 취소
+                </button>
             </th>
         </tr>
     {% endfor %}
@@ -26,3 +36,6 @@
 >
     연동
 </button>
+
+{# 연동 취소후, 싱크 캘린더 - [count] 업데이트 => hx-trigger response로 교체 #}
+{#<span id="synced-calendars-count" hx-swap-oob="true">{{ synced_calendars | length }}</span>#}

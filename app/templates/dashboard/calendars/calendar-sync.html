@@ -11,7 +11,7 @@
         </div>
 
         <div class="row mt-3 justify-content-center">
-            <h6> 나의 구글계정 캘린더 목록</h6>
+            <h6> 나의 구글계정 캘린더 목록 ({{ calendars | length }})</h6>
             <table style="border: 1px solid; width: 80%;">
                 <tr>
                     <th>Calendar Name</th>
@@ -50,7 +50,16 @@
         </div>
 
         <div class="row mt-3 justify-content-center">
-            <h6> Sync 캘린더 목록</h6>
+            <h6> Sync 캘린더 목록 (
+                <span id="synced-calendars-count"
+                      hx-trigger="synced-calendars-count from:body"
+                      hx-get="{{ url_for('hx_get_synced_calendars_count') }}"
+                      hx-swap="outerHTML"
+                >
+                    {{ synced_calendars | length }}
+                </span>
+                )
+            </h6>
             {#            <table style="border: 1px solid; width: 80%;">#}
             <table style="border: 1px solid; width: 80%;" id="syncedCalendarTable">
                 <tr>
@@ -73,6 +82,7 @@
                             >
                                 연동 취소
                             </button>
+
                         </th>
                     </tr>
                 {% endfor %}
@@ -80,3 +90,6 @@
         </div>
     </div>
 {% endblock content %}
+
+
+

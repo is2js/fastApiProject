@@ -1,0 +1,7 @@
+<span id="synced-calendars-count"
+      hx-trigger="synced-calendars-count from:body"
+      hx-get="{{ url_for('hx_get_synced_calendars_count') }}"
+      hx-swap="outerHTML"
+    >
+    {{ synced_calendars_count }}
+</span>

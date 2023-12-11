@@ -17,7 +17,7 @@
 </tr>
 
 
-{# 내 구글 캘린더 - 연동 버튼 => 연동 중으로 바꾸기 (현재 element for hx-swap-oob) #}
+{# 내 구글 캘린더 - [연동 버튼 => 연동 중]으로 바꾸기 (현재 element for hx-swap-oob) #}
 <button
         id="syncBtn_{{ new_synced_calendar.id }}"
         class='btn btn-sm btn-success'
@@ -25,3 +25,6 @@
 >
     연동 중
 </button>
+
+{# 내 구글 캘린더 - [count] 업데이트 => hx-trigger response로 교체 #}
+{#<span id="synced-calendars-count" hx-swap-oob="true">{{ synced_calendars_count }}</span>#}

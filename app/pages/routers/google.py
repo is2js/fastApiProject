@@ -117,23 +117,33 @@ async def hx_create_calendar_syncs(
 
     new_synced_calendar = await UserCalendars.filter_by(session=session, id=new_sync.calendar_id).first()
 
+    # 현재 user의 모든 synced calendars 조회하기 for count
+    # synced_calendars_count = await CalendarSyncs.filter_by(session=session, user_id=data.get('user_id')).count()
+    # => custom event hx-trigger로 자동 처리
+
     return render(request, "dashboard/calendars/partials/synced-calendar-tr.html",
                   context={
                       'new_synced_calendar': new_synced_calendar,
                       'user_id': data.get('user_id'),
                       'calendar_id': data.get('calendar_id'),
-                  })
+                      # 'synced_calendars_count': synced_calendars_count,
+                      # => custom event hx-trigger로 자동 처리
+                  },
+                  # 연동되서 호출될 hx custom event를 위한, HX-Trigger headers를 response 추가하는 옵션
+                  hx_trigger='synced-calendars-count'
+                  )
 
 
 @router.post("/calendar_sync_cancel")
 async def hx_delete_calendar_syncs(
         request: Request,
+        is_htmx=Depends(is_htmx),
         data_and_error_infos=Depends(hx_vals_schema(DeleteCalendarSyncsRequest)),
         session: AsyncSession = Depends(db.session),
 ):
     data, error_infos = data_and_error_infos
-    if len(error_infos) > 0:
 
+    if len(error_infos) > 0:
         error_endpoint = request.url_for('errors', status_code=400)
         error_endpoint = error_endpoint.include_query_params(message=error_infos)
         return redirect(error_endpoint, is_htmx=is_htmx)
@@ -162,4 +172,39 @@ async def hx_delete_calendar_syncs(
                       'synced_calendars': synced_calendars,
                       'user_id': data.get('user_id'),
                       'calendar_id': data.get('calendar_id'),
+                  },
+                  hx_trigger='synced-calendars-count'
+                  )
+
+
+@router.get("/synced_calendars_count")
+async def hx_get_synced_calendars_count(
+        request: Request,
+        session: AsyncSession = Depends(db.session),
+):
+    user = request.state.user
+
+    # TODO: load 구현 후, count() 메서드로 처리되게 하기
+    # scalars 객체 조회 : await session.scalars(stmt) + .all() =>
+    # scalar count 조회 :
+    # 1) stmt -> select( func.count() ).select_from( stmt )  + 2) await session.execute(count_stmt) + 3) .scalar()
+    subquery_stmt = (
+        select(UserCalendars)
+        .filter_by(is_deleted=False)  # cls 테이블에 대한 조건. 삭제처리 안된 것만
+        .join(UserCalendars.calendar_syncs)
+        .filter(CalendarSyncs.user_id == user.id)
+    )
+    from sqlalchemy import func
+    count_stmt = select(*[func.count()]) \
+        .select_from(subquery_stmt)
+
+    # synced_calendars_count_result = await session.scalar(count_stmt)
+    # synced_calendars_count = synced_calendars_count_result.scalar()
+
+    # 2) stmt -> select( func.count() ).select_from( stmt )  + 2) await session.scalar(count_stmt)
+    synced_calendars_count = await session.scalar(count_stmt)
+
+    return render(request, "dashboard/calendars/partials/synced-calendars-count-span.html",
+                  context={
+                      'synced_calendars_count': synced_calendars_count,
                   })

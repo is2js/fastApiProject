@@ -41,7 +41,10 @@ def redirect(path, cookies: dict = {}, logout=False, is_htmx=False):
     return response
 
 
-def render(request, template_name, context={}, status_code: int = 200, cookies: dict = {}):
+def render(request, template_name, context={}, status_code: int = 200, cookies: dict = {},
+           hx_trigger: str = None,
+           # htmx 관련 response headers 추가. hx_target: str = None, hx_swap: str = None, hx_push_url: str = None,
+           ):
     # ctx = context.copy()
     # ctx.update({"request": request})
     ctx = {
@@ -50,12 +53,19 @@ def render(request, template_name, context={}, status_code: int = 200, cookies: 
         **context
     }
 
+    # dashboard에서 bog_guild_count를 항상 표시하기 위해
+    # request.state에 discord의 bot의 guild count를 요청하면, ctx에 박아서
+    # 뿌려주게 함.
     if request.state.bot_guild_count:
         ctx.update({'bot_guild_count': request.state.bot_guild_count})
 
     t = templates.get_template(template_name)
     html_str = t.render(ctx)
     response = HTMLResponse(html_str, status_code=status_code)
+
+    # htmx 관련 response headers에 HX-trigger 추가
+    if hx_trigger:
+        response.headers["HX-Trigger"] = hx_trigger
 
     response.set_cookie(key='darkmode', value=str(1))
     if len(cookies.keys()) > 0:
