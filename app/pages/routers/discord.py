@@ -274,12 +274,18 @@ async def guilds(request: Request):
     guild_ids = guild_ids.response['guild_ids']
 
     # https://discord.com/developers/docs/resources/user#get-current-user-guilds
+
+    #### 추가) 내가 관리자가 아닌 guild를 미리 제외시켜야, 정렬 등을 위해 추가한  use_bot, icon 키들이 순회하며 입력된다.
+    # -> 중간에 continue하면, 정렬시나 view에서 없는 속성으로 떠서 골치아프다.
+    user_guilds = list(filter(lambda x: x['owner'] or discord.Permissions(x['permissions']).administrator, user_guilds))
+
     for guild in user_guilds:
         # 해당user의 permission으로 guild 관리자인지 확인
         # (1) discord.Permissions( guild['permissions'] ).administrator   or  (2) guild['owner']
-        is_admin: bool = discord.Permissions(guild['permissions']).administrator or guild.get('owner')
-        if not is_admin:
-            continue
+        # is_admin: bool = discord.Permissions(guild['permissions']).administrator or guild.get('owner')
+        # if not is_admin:
+        #     continue
+        # ====> 미리 쳐냄.
 
         # (2) icon 간편주소를 img주소로 변경
         if guild.get('icon', None):
